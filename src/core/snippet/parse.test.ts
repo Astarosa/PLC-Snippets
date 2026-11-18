@@ -49,9 +49,10 @@ describe("matchesQuery", () => {
   const snippets = parsed.flatMap((r) => (r.ok ? [r.snippet] : []));
 
   it("cherche dans le titre, les tags et le code", () => {
-    expect(snippets.filter((s) => matchesQuery(s, "convoyeur")).length).toBe(1);
+    expect(snippets.filter((s) => matchesQuery(s, "convoyeur")).length).toBe(2);
     expect(snippets.filter((s) => matchesQuery(s, "KM1")).length).toBe(1);
+    expect(snippets.filter((s) => matchesQuery(s, "CTU")).length).toBe(1);
     expect(snippets.filter((s) => matchesQuery(s, "moteur base")).length).toBe(1);
-    expect(snippets.filter((s) => matchesQuery(s, "")).length).toBe(2);
+    expect(snippets.filter((s) => matchesQuery(s, "")).length).toBe(3);
   });
 });

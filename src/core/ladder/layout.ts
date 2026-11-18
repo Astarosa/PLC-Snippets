@@ -1,4 +1,13 @@
-import type { CoilKind, ContactKind, Expr, Network, Rung } from "./ast";
+import {
+  BOX_SPECS,
+  type CoilKind,
+  type CompareOp,
+  type ContactKind,
+  type EdgeKind,
+  type Expr,
+  type Network,
+  type Rung,
+} from "./ast";
 
 /*
  * Mise en page d'un réseau LADDER sur une grille, indépendante de React :
@@ -10,7 +19,7 @@ import type { CoilKind, ContactKind, Expr, Network, Rung } from "./ast";
  */
 
 export const CELL_W = 120;
-export const ROW_H = 64;
+export const ROW_H = 76;
 /** Hauteur du fil dans une ligne (le libellé de l'opérande est au-dessus). */
 export const WIRE_Y = 38;
 export const RAIL_X = 16;
@@ -22,6 +31,19 @@ export type Shape =
   | { kind: "rail"; x: number; y1: number; y2: number }
   | { kind: "contact"; x: number; y: number; variant: ContactKind; label: string }
   | { kind: "coil"; x: number; y: number; variant: CoilKind; label: string }
+  | { kind: "edge"; x: number; y: number; variant: EdgeKind; label: string; memory: string }
+  | { kind: "compare"; x: number; y: number; op: CompareOp; left: string; right: string }
+  | {
+      kind: "box";
+      x: number;
+      y: number;
+      width: number;
+      title: string;
+      instance: string | null;
+      mainIn: string;
+      mainOut: string;
+      params: { name: string; value: string; direction: "in" | "out" }[];
+    }
   | { kind: "title"; x: number; y: number; text: string };
 
 export interface Diagram {
@@ -30,11 +52,36 @@ export interface Diagram {
   shapes: Shape[];
 }
 
+/* Géométrie d'une boîte, relative au fil qui la traverse. */
+export const BOX_CELLS = 2;
+export const BOX_TOP = 26; // le cadre commence 26 px au-dessus du fil
+export const BOX_PARAM_Y = 20; // 1er paramètre 20 px sous le fil
+export const BOX_PARAM_H = 16;
+
+function boxParams(expr: Extract<Expr, { type: "box" }>) {
+  const spec = BOX_SPECS[expr.box];
+  return [
+    ...spec.inputs
+      .filter((n) => expr.params[n])
+      .map((n) => ({ name: n, value: expr.params[n].text, direction: "in" as const })),
+    ...spec.outputs
+      .filter((n) => expr.params[n])
+      .map((n) => ({ name: n, value: expr.params[n].text, direction: "out" as const })),
+  ];
+}
+
+/** Bas du cadre d'une boîte, relatif au fil. */
+export const boxBottom = (paramCount: number) => BOX_PARAM_Y + paramCount * BOX_PARAM_H - 4;
+
 /** Taille d'une expression en cellules (largeur) et en lignes (hauteur). */
 function size(expr: Expr): { w: number; h: number } {
   switch (expr.type) {
     case "contact":
+    case "edge":
+    case "compare":
       return { w: 1, h: 1 };
+    case "box":
+      return { w: BOX_CELLS, h: Math.ceil((WIRE_Y + boxBottom(boxParams(expr).length) + 4) / ROW_H) };
     case "series": {
       const sizes = expr.items.map(size);
       return { w: sizes.reduce((s, x) => s + x.w, 0), h: Math.max(...sizes.map((x) => x.h)) };
@@ -61,6 +108,41 @@ function place(expr: Expr, col: number, row: number, originY: number, out: Shape
         label: expr.operand.text,
       });
       return;
+    case "edge":
+      out.push({
+        kind: "edge",
+        x: px(col),
+        y: wireY(originY, row),
+        variant: expr.kind,
+        label: expr.operand.text,
+        memory: expr.memory.text,
+      });
+      return;
+    case "compare":
+      out.push({
+        kind: "compare",
+        x: px(col),
+        y: wireY(originY, row),
+        op: expr.op,
+        left: expr.left.text,
+        right: expr.right.text,
+      });
+      return;
+    case "box": {
+      const spec = BOX_SPECS[expr.box];
+      out.push({
+        kind: "box",
+        x: px(col),
+        y: wireY(originY, row),
+        width: BOX_CELLS * CELL_W,
+        title: expr.box,
+        instance: expr.instance?.text ?? null,
+        mainIn: spec.mainIn,
+        mainOut: spec.mainOut,
+        params: boxParams(expr),
+      });
+      return;
+    }
     case "series": {
       let c = col;
       for (const item of expr.items) {
@@ -104,9 +186,10 @@ function placeRung(rung: Rung, originY: number, coilCol: number, out: Shape[]): 
   const cond = size(rung.condition);
   place(rung.condition, 0, 0, originY, out);
 
-  // Fil entre la fin de la condition et la colonne des bobines.
+  // Fil entre la fin de la condition et la colonne des bobines (s'il y en a).
   const y0 = wireY(originY, 0);
-  if (cond.w < coilCol) out.push({ kind: "wire", x1: px(cond.w), y1: y0, x2: px(coilCol), y2: y0 });
+  if (rung.outputs.length > 0 && cond.w < coilCol)
+    out.push({ kind: "wire", x1: px(cond.w), y1: y0, x2: px(coilCol), y2: y0 });
 
   // Plusieurs bobines : branches parallèles à droite, comme dans TIA Portal.
   rung.outputs.forEach((o, i) => {
@@ -136,9 +219,11 @@ export function layoutNetwork(network: Network): Diagram {
   }
   // Toutes les bobines d'un réseau sur la même colonne, au moins 1 cellule après la condition.
   const coilCol = Math.max(2, ...network.rungs.map(conditionWidth)) + 1;
+  const hasCoils = network.rungs.some((r) => r.outputs.length > 0);
   network.rungs.forEach((rung, i) => {
     if (i > 0) y += RUNG_GAP;
     y += placeRung(rung, y, coilCol, shapes);
   });
-  return { width: px(coilCol + 1) + RAIL_X, height: y + 8, shapes };
+  const lastCol = hasCoils ? coilCol + 1 : coilCol - 1;
+  return { width: px(lastCol) + RAIL_X, height: y + 8, shapes };
 }

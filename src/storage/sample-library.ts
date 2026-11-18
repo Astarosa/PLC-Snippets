@@ -1,4 +1,21 @@
+import { parseLadder } from "../core/ladder/parse";
+import { ladderToScl } from "../core/ladder/scl";
 import { type RawSnippet, toRawSnippet } from "../core/snippet/parse";
+
+const SURVEILLANCE_LAD = `network "Défaut de bourrage"
+  NO "Convoyeur_Marche" & NC "Capteur_Sortie" & TON "T_Bourrage" PT=T#8S -> SET "Defaut_Bourrage"
+  NO "Acquit" -> RESET "Defaut_Bourrage"
+
+network "Comptage des pièces"
+  P "Capteur_Sortie" MEM="M_Front_Sortie" & CTU "C_Lot" R="Raz_Lot" PV=50 CV="Nb_Pieces" -> COIL "Lot_Complet"
+`;
+
+/** Le SCL de l'exemple est généré par l'app elle-même : il reste toujours cohérent. */
+function generated(lad: string): string {
+  const parsed = parseLadder(lad);
+  if (!parsed.ok) throw new Error(`Exemple LADDER invalide : ${parsed.error.message}`);
+  return ladderToScl(parsed.program);
+}
 
 /** Snippets d'exemple, écrits dans une bibliothèque vide pour tester l'app. */
 export function sampleSnippets(now = new Date().toISOString()): RawSnippet[] {
@@ -39,6 +56,33 @@ export function sampleSnippets(now = new Date().toISOString()): RawSnippet[] {
           "",
         ].join("\n"),
       },
+    }),
+    toRawSnippet({
+      id: "surveillance-bourrage-comptage",
+      meta: {
+        schemaVersion: 1,
+        title: "Surveillance de bourrage et comptage par lot",
+        summary:
+          "Défaut si la sortie reste libre 8 s convoyeur en marche ; comptage des pièces sur front montant.",
+        tags: ["convoyeur", "TON", "CTU", "front", "défaut"],
+        blockType: "NETWORK",
+        cpuFamilies: ["S7-1200", "S7-1500"],
+        tiaVersion: "V19",
+        variants: [
+          { lang: "LAD", file: "main.lad" },
+          { lang: "SCL", file: "main.scl", generated: true },
+        ],
+        createdAt: now,
+        updatedAt: now,
+      },
+      readme: [
+        "# Surveillance de bourrage et comptage",
+        "",
+        "- `T_Bourrage` et `C_Lot` sont des DB d'instance (IEC_TIMER / IEC_COUNTER).",
+        "- Le défaut est mémorisé (SET) et ne retombe qu'à l'acquittement.",
+        "- `M_Front_Sortie` est le bit mémoire du front montant : un bit dédié, utilisé nulle part ailleurs.",
+      ].join("\n"),
+      files: { "main.lad": SURVEILLANCE_LAD, "main.scl": generated(SURVEILLANCE_LAD) },
     }),
     toRawSnippet({
       id: "machine-etat-convoyeur",

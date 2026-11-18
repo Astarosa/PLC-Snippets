@@ -1,13 +1,44 @@
 import { useMemo } from "react";
 import type { LadProgram } from "../../core/ladder/ast";
-import { CELL_W, layoutNetwork, type Shape } from "../../core/ladder/layout";
+import {
+  BOX_PARAM_H,
+  BOX_PARAM_Y,
+  BOX_TOP,
+  boxBottom,
+  CELL_W,
+  layoutNetwork,
+  type Shape,
+} from "../../core/ladder/layout";
 
 const WIRE = "#94a3b8"; // slate-400
 const SYMBOL = "#34d399"; // emerald-400
 const LABEL = "#e2e8f0"; // slate-200
+const PIN = "#7dd3fc"; // sky-300
+const MONO = "Consolas, ui-monospace, monospace";
 const MAX_LABEL = 16;
 
-const short = (label: string) => (label.length > MAX_LABEL ? `${label.slice(0, MAX_LABEL - 1)}…` : label);
+const short = (label: string, max = MAX_LABEL) =>
+  label.length > max ? `${label.slice(0, max - 1)}…` : label;
+
+/** Fils d'entrée et de sortie d'un élément d'une cellule, laissant `gap` px au centre. */
+function Stubs({ x, y, gap }: { x: number; y: number; gap: number }) {
+  const cx = x + CELL_W / 2;
+  return (
+    <>
+      <line x1={x} y1={y} x2={cx - gap} y2={y} stroke={WIRE} strokeWidth={1.5} />
+      <line x1={cx + gap} y1={y} x2={x + CELL_W} y2={y} stroke={WIRE} strokeWidth={1.5} />
+    </>
+  );
+}
+
+function Bars({ cx, y, gap }: { cx: number; y: number; gap: number }) {
+  return (
+    <>
+      <line x1={cx - gap} y1={y - 12} x2={cx - gap} y2={y + 12} stroke={SYMBOL} strokeWidth={2} />
+      <line x1={cx + gap} y1={y - 12} x2={cx + gap} y2={y + 12} stroke={SYMBOL} strokeWidth={2} />
+    </>
+  );
+}
 
 function Label({ x, y, text }: { x: number; y: number; text: string }) {
   return (
@@ -50,6 +81,101 @@ function ShapeView({ shape }: { shape: Shape }) {
             <line x1={cx - 7} y1={y + 10} x2={cx + 7} y2={y - 10} stroke={SYMBOL} strokeWidth={2} />
           )}
           <Label x={cx} y={y - 18} text={shape.label} />
+        </g>
+      );
+    }
+    case "edge": {
+      const cx = shape.x + CELL_W / 2;
+      const { y } = shape;
+      return (
+        <g>
+          <Stubs x={shape.x} y={y} gap={10} />
+          <Bars cx={cx} y={y} gap={10} />
+          <text x={cx} y={y + 4} textAnchor="middle" fill={SYMBOL} fontSize={12} fontWeight={700}>
+            {shape.variant}
+          </text>
+          <Label x={cx} y={y - 18} text={shape.label} />
+          <Label x={cx} y={y + 28} text={shape.memory} />
+        </g>
+      );
+    }
+    case "compare": {
+      const cx = shape.x + CELL_W / 2;
+      const { y } = shape;
+      return (
+        <g>
+          <Stubs x={shape.x} y={y} gap={16} />
+          <Bars cx={cx} y={y} gap={16} />
+          <text
+            x={cx}
+            y={y + 4}
+            textAnchor="middle"
+            fill={SYMBOL}
+            fontSize={11}
+            fontWeight={700}
+            fontFamily={MONO}
+          >
+            {shape.op}
+          </text>
+          <Label x={cx} y={y - 18} text={shape.left} />
+          <Label x={cx} y={y + 28} text={shape.right} />
+        </g>
+      );
+    }
+    case "box": {
+      const { x, y, width } = shape;
+      const left = x + 18;
+      const right = x + width - 18;
+      const top = y - BOX_TOP;
+      const bottom = y + boxBottom(shape.params.length);
+      const maxValue = 22;
+      return (
+        <g>
+          <line x1={x} y1={y} x2={left} y2={y} stroke={WIRE} strokeWidth={1.5} />
+          <line x1={right} y1={y} x2={x + width} y2={y} stroke={WIRE} strokeWidth={1.5} />
+          <rect
+            x={left}
+            y={top}
+            width={right - left}
+            height={bottom - top}
+            rx={3}
+            fill="#0f172a"
+            stroke={SYMBOL}
+            strokeWidth={1.5}
+          />
+          {shape.instance && <Label x={(left + right) / 2} y={top - 6} text={shape.instance} />}
+          <text
+            x={(left + right) / 2}
+            y={y - 9}
+            textAnchor="middle"
+            fill={SYMBOL}
+            fontSize={12}
+            fontWeight={700}
+          >
+            {shape.title}
+          </text>
+          <text x={left + 5} y={y + 4} fill={PIN} fontSize={10} fontFamily={MONO}>
+            {shape.mainIn}
+          </text>
+          <text x={right - 5} y={y + 4} textAnchor="end" fill={PIN} fontSize={10} fontFamily={MONO}>
+            {shape.mainOut}
+          </text>
+          {shape.params.map((param, i) => {
+            const py = y + BOX_PARAM_Y + i * BOX_PARAM_H;
+            return param.direction === "in" ? (
+              <text key={param.name} x={left + 5} y={py} fontSize={10} fontFamily={MONO}>
+                <title>{`${param.name} := ${param.value}`}</title>
+                <tspan fill={PIN}>{param.name}</tspan>
+                <tspan fill={LABEL}> {short(param.value, maxValue)}</tspan>
+              </text>
+            ) : (
+              <text key={param.name} x={right - 5} y={py} textAnchor="end" fontSize={10} fontFamily={MONO}>
+                <title>{`${param.name} => ${param.value}`}</title>
+                <tspan fill={LABEL}>{short(param.value, maxValue)} </tspan>
+                <tspan fill={PIN}>{param.name}</tspan>
+              </text>
+            );
+          })}
         </g>
       );
     }

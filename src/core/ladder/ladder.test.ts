@@ -51,10 +51,16 @@ describe("parseLadder", () => {
     ['NO -> COIL "B"', 1, 4, "Opérande attendu après NO"],
     ['( NO "A" | NO "B" -> COIL "C"', 1, 19, "pour fermer la parenthèse"],
     ['NO "A -> COIL "B"', 1, 17, "Caractère inattendu"],
-    ['NO "A" & TON "T" -> COIL "B"', 1, 10, "étape 5"],
+    ['NO "A" & TON "T" -> COIL "B"', 1, 10, "paramètre PT manquant"],
+    ['NO "A" & TON PT=T#5S -> COIL "B"', 1, 14, "instance attendue"],
+    ['TON #T PT=T#5S XX=1 -> COIL "B"', 1, 16, "TON n'a pas de paramètre XX"],
+    ["MOVE IN=5 OUT=10", 1, 1, "la sortie OUT doit être une variable"],
+    ['P "Bp" -> COIL "B"', 1, 1, "bit mémoire de front manquant"],
+    ['CMP "N" = 5 -> COIL "B"', 1, 9, "Comparateur attendu"],
+    ['NO "A"', 1, 7, "« -> » attendu"],
     ['FOO "A" -> COIL "B"', 1, 1, "Élément inconnu"],
     ["", 1, 1, "vide"],
-    ['NO "A" -> COIL "B"\n  NO "C" & -> COIL "D"', 2, 12, "Contact attendu"],
+    ['NO "A" -> COIL "B"\n  NO "C" & -> COIL "D"', 2, 12, "Élément attendu"],
   ])("signale l'erreur dans « %s »", (source, line, col, message) => {
     const result = parseLadder(source);
     expect(result.ok).toBe(false);
@@ -101,6 +107,82 @@ describe("ladderToScl", () => {
         '    "H1" := FALSE;',
         "END_IF;",
       ].join("\n"),
+    );
+  });
+
+  it("appelle une temporisation multi-instance et continue avec Q", () => {
+    expect(scl('NO "Capteur" & NC "Raz" & TON #Tempo PT=T#5S ET=#Ecoule -> COIL "Defaut"')).toBe(
+      ['#Tempo(IN := "Capteur" AND NOT "Raz", PT := T#5S, ET => #Ecoule);', '"Defaut" := #Tempo.Q;'].join(
+        "\n",
+      ),
+    );
+  });
+
+  it("appelle une temporisation dans un DB d'instance", () => {
+    expect(scl('NO "Dcy" & TOF "T_Arret" PT=T#2S -> COIL "KM2"')).toBe(
+      ['"T_Arret".TOF(IN := "Dcy", PT := T#2S);', '"KM2" := "T_Arret".Q;'].join("\n"),
+    );
+  });
+
+  it("continue le fil après la boîte (contacts en série après Q)", () => {
+    expect(scl('( NO "A" | NO "B" ) & TON #T PT=T#1S & NO "C" -> COIL "X"')).toBe(
+      ['#T(IN := "A" OR "B", PT := T#1S);', '"X" := #T.Q AND "C";'].join("\n"),
+    );
+  });
+
+  it("gère un compteur avec remise à zéro et valeur courante", () => {
+    expect(scl('P "Piece" MEM="Mem_Piece" & CTU #Cpt R="Raz" PV=100 CV=#Nb -> COIL "Lot_Plein"')).toBe(
+      [
+        '#Cpt(CU := "Piece" AND NOT "Mem_Piece", R := "Raz", PV := 100, CV => #Nb);',
+        '"Lot_Plein" := #Cpt.Q;',
+        '"Mem_Piece" := "Piece"; // mémoire du front montant',
+      ].join("\n"),
+    );
+  });
+
+  it("gère CTUD et sa sortie QU", () => {
+    expect(scl('NO "Haut" & CTUD #C CD="Bas" PV=10 QD="Vide" -> COIL "Plein"')).toBe(
+      ['#C(CU := "Haut", CD := "Bas", PV := 10, QD => "Vide");', '"Plein" := #C.QU;'].join("\n"),
+    );
+  });
+
+  it("traduit un front descendant", () => {
+    expect(scl('N "Porte" MEM="M_Porte" -> SET "Alarme"')).toBe(
+      [
+        'IF NOT "Porte" AND "M_Porte" THEN',
+        '    "Alarme" := TRUE;',
+        "END_IF;",
+        '"M_Porte" := "Porte"; // mémoire du front descendant',
+      ].join("\n"),
+    );
+  });
+
+  it("traduit les comparateurs avec les bonnes parenthèses", () => {
+    expect(scl('CMP "Niveau" >= 80 -> COIL "Plein"')).toBe('"Plein" := "Niveau" >= 80;');
+    expect(scl('NO "Auto" & CMP "Temp" > 25.5 -> COIL "Ventil"')).toBe(
+      '"Ventil" := "Auto" AND ("Temp" > 25.5);',
+    );
+    expect(scl('CMP #Etape == 10 | NO "Forcage" -> COIL "V1"')).toBe('"V1" := (#Etape = 10) OR "Forcage";');
+  });
+
+  it("exécute MOVE et les calculs sous condition, ou toujours s'ils sont sur la barre", () => {
+    expect(scl('P "Bp" MEM="M_Bp" & MOVE IN=1500 OUT="Consigne"')).toBe(
+      [
+        'IF "Bp" AND NOT "M_Bp" THEN',
+        '    "Consigne" := 1500;',
+        "END_IF;",
+        '"M_Bp" := "Bp"; // mémoire du front montant',
+      ].join("\n"),
+    );
+    expect(scl("ADD IN1=#Total IN2=1 OUT=#Total")).toBe("#Total := #Total + 1;");
+    expect(scl('NO "Calc" & DIV IN1=#Somme IN2=#Nb OUT=#Moyenne -> COIL "Fait"')).toBe(
+      ['IF "Calc" THEN', "    #Moyenne := #Somme / #Nb;", "END_IF;", '"Fait" := "Calc";'].join("\n"),
+    );
+  });
+
+  it("donne à chaque branche parallèle le même fil entrant", () => {
+    expect(scl('NO "A" & ( TON #T1 PT=T#1S | NO "B" ) -> COIL "X"')).toBe(
+      ['#T1(IN := "A", PT := T#1S);', '"X" := #T1.Q OR "A" AND "B";'].join("\n"),
     );
   });
 

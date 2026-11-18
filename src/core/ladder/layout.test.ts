@@ -47,4 +47,41 @@ describe("layoutNetwork", () => {
     expect(d.width).toBeGreaterThan(coils[0].x);
     expect(d.height).toBeGreaterThan(coils[2].y);
   });
+
+  it("place une boîte sur 2 cellules et continue le fil après Q", () => {
+    const d = layout('NO "Capteur" & TON #Tempo PT=T#5S ET=#Ecoule & NO "Auto" -> COIL "Defaut"');
+    const [box] = ofKind(d.shapes, "box");
+    expect(box).toMatchObject({
+      title: "TON",
+      instance: "#Tempo",
+      mainIn: "IN",
+      mainOut: "Q",
+      x: RAIL_X + CELL_W,
+    });
+    expect(box.params).toEqual([
+      { name: "PT", value: "T#5S", direction: "in" },
+      { name: "ET", value: "#Ecoule", direction: "out" },
+    ]);
+    const auto = ofKind(d.shapes, "contact").find((c) => c.label === '"Auto"');
+    expect(auto?.x).toBe(RAIL_X + 3 * CELL_W);
+    // Deux paramètres : la boîte occupe deux lignes, le rung aussi.
+    expect(d.height).toBeGreaterThan(2 * 76 - 10);
+  });
+
+  it("dessine fronts et comparateurs comme des contacts", () => {
+    const d = layout('P "Bp" MEM="M_Bp" & CMP "Niveau" > 80 -> COIL "X"');
+    expect(ofKind(d.shapes, "edge")[0]).toMatchObject({ variant: "P", label: '"Bp"', memory: '"M_Bp"' });
+    expect(ofKind(d.shapes, "compare")[0]).toMatchObject({
+      op: ">",
+      left: '"Niveau"',
+      right: "80",
+      x: RAIL_X + CELL_W,
+    });
+  });
+
+  it("accepte un rung sans bobine qui finit par une boîte", () => {
+    const d = layout('NO "Dcy" & MOVE IN=10 OUT="Consigne"');
+    expect(ofKind(d.shapes, "coil")).toHaveLength(0);
+    expect(d.width).toBe(RAIL_X + 3 * CELL_W + RAIL_X);
+  });
 });

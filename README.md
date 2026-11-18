@@ -109,6 +109,9 @@ Le dossier peut vivre dans Nextcloud (synchronisation) et devenir un dépôt git
 - [ ] **3. Historique** : commit git automatique (isomorphic-git), vue diff
 - [x] **4. DSL LADDER** : parseur, rendu SVG, génération SCL de la logique combinatoire
       (syntaxe : [docs/ladder-dsl.md](docs/ladder-dsl.md))
-- [ ] **5. Boîtes** (TON, CTU, MOVE…), export `.scl` complet, version portable
+- [x] **5. Boîtes et fronts** : TON / TOF / TP / TONR, CTU / CTD / CTUD, MOVE, ADD / SUB / MUL / DIV,
+      fronts P / N, comparateurs, rendu et génération SCL
+- [ ] **6.** Export `.scl` complet (bloc avec interface) à importer dans TIA, rendu Markdown des notes,
+      historique git
 
 L'icône est générée depuis `app-icon.png` : `npx tauri icon app-icon.png`.

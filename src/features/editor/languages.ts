@@ -67,7 +67,7 @@ const sclParser: StreamParser<SclState> = {
 
 const LAD_KEYWORDS = new Set(["network"]);
 const LAD_ELEMENTS = new Set(
-  "NO NC P N COIL NCOIL SET RESET TON TOF TP TONR CTU CTD CTUD MOVE CMP ADD SUB MUL DIV".split(" "),
+  "NO NC P N CMP COIL NCOIL SET RESET TON TOF TP TONR CTU CTD CTUD MOVE ADD SUB MUL DIV".split(" "),
 );
 
 const ladParser: StreamParser<null> = {
@@ -82,14 +82,15 @@ const ladParser: StreamParser<null> = {
     if (stream.match(/^"[^"]*"?/)) return "globalTag";
     if (stream.match(/^#[A-Za-z_]\w*/)) return "variableName";
     if (stream.match(/^[A-Za-z]+#[\w.:+-]+/)) return "number";
-    if (stream.match(/^\d+(\.\d+)?/)) return "number";
+    if (stream.match(/^[+-]?\d+(\.\d+)?/)) return "number";
     if (stream.match(/^[A-Za-z_]\w*/)) {
       const word = stream.current();
       if (LAD_KEYWORDS.has(word)) return "keyword";
+      if (/^(TRUE|FALSE)$/i.test(word)) return "atom";
       if (LAD_ELEMENTS.has(word.toUpperCase())) return "typeName";
       return "propertyName"; // paramètres de boîte : IN=, PT=…
     }
-    if (stream.match(/^(->|[&|=])/)) return "operator";
+    if (stream.match(/^(->|==|<>|>=|<=|[&|=<>,])/)) return "operator";
     stream.next();
     return null;
   },

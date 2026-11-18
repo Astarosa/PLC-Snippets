@@ -30,7 +30,7 @@ export function Welcome() {
   if (empty) {
     return (
       <Centered title="Bibliothèque vide">
-        <p>Crée ton premier snippet, ou ajoute deux exemples pour voir le format sur le disque.</p>
+        <p>Crée ton premier snippet, ou ajoute quelques exemples pour voir le format sur le disque.</p>
         <Link to="/new" className={`${button} inline-block`}>
           + Nouveau snippet
         </Link>
