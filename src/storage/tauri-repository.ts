@@ -17,7 +17,15 @@ export const tauriRepository: SnippetRepository = {
     return content;
   },
 
+  async create(library, snippet) {
+    await invoke("create_snippet", { library, snippet });
+  },
+
   async write(library, snippet) {
     await invoke("write_snippet", { library, snippet });
+  },
+
+  async delete(library, id) {
+    await invoke("delete_snippet", { library, id });
   },
 };

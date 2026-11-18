@@ -5,6 +5,7 @@ import {
   createRouter,
   Outlet,
 } from "@tanstack/react-router";
+import { EditSnippetPage, NewSnippetPage } from "./features/editor/pages";
 import { Sidebar } from "./features/library/Sidebar";
 import { Welcome } from "./features/library/Welcome";
 import { SnippetPage } from "./features/snippet/SnippetPage";
@@ -28,8 +29,20 @@ const snippetRoute = createRoute({
   component: SnippetPage,
 });
 
+const newSnippetRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/new",
+  component: NewSnippetPage,
+});
+
+const editSnippetRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/snippets/$snippetId/edit",
+  component: EditSnippetPage,
+});
+
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([indexRoute, snippetRoute]),
+  routeTree: rootRoute.addChildren([indexRoute, newSnippetRoute, snippetRoute, editSnippetRoute]),
   // Historique en hash : robuste dans une webview, pas de serveur à configurer.
   history: createHashHistory(),
 });

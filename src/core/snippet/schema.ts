@@ -63,6 +63,7 @@ export const snippetMetaSchema = z.object({
 
 export type Lang = (typeof LANGS)[number];
 export type BlockType = (typeof BLOCK_TYPES)[number];
+export type CpuFamily = (typeof CPU_FAMILIES)[number];
 export type Variable = z.infer<typeof variableSchema>;
 export type SnippetInterface = z.infer<typeof interfaceSchema>;
 export type SnippetMeta = z.infer<typeof snippetMetaSchema>;

@@ -1,0 +1,37 @@
+import { markdown } from "@codemirror/lang-markdown";
+import { oneDark } from "@codemirror/theme-one-dark";
+import CodeMirror from "@uiw/react-codemirror";
+import { useMemo } from "react";
+import { lad, scl } from "./languages";
+
+const LANGUAGES = { scl, lad, markdown: () => markdown() };
+
+export function CodeEditor({
+  value,
+  onChange,
+  language,
+  minHeight = "200px",
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  language: keyof typeof LANGUAGES;
+  minHeight?: string;
+  placeholder?: string;
+}) {
+  const extensions = useMemo(() => [LANGUAGES[language]()], [language]);
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-700 text-[13px]">
+      <CodeMirror
+        value={value}
+        onChange={onChange}
+        extensions={extensions}
+        theme={oneDark}
+        minHeight={minHeight}
+        placeholder={placeholder}
+        basicSetup={{ foldGutter: false, highlightActiveLine: true, tabSize: 4 }}
+        indentWithTab
+      />
+    </div>
+  );
+}

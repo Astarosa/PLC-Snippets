@@ -39,6 +39,13 @@ export function Sidebar() {
             </button>
           )}
         </div>
+        <Link
+          to="/new"
+          disabled={!libraryPath}
+          className="block rounded-md bg-sky-600 px-3 py-1.5 text-center text-sm font-medium text-white hover:bg-sky-500 aria-disabled:pointer-events-none aria-disabled:opacity-40"
+        >
+          + Nouveau snippet
+        </Link>
         <input
           type="search"
           value={query}

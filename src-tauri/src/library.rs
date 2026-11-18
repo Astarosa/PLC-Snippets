@@ -180,6 +180,25 @@ pub fn write(library: &str, snippet: &RawSnippet) -> Result<(), String> {
     Ok(())
 }
 
+/// Crée un nouveau snippet. Refuse si le dossier existe déjà, pour ne jamais
+/// écraser un snippet existant par erreur (deux titres donnant le même identifiant).
+pub fn create(library: &str, snippet: &RawSnippet) -> Result<(), String> {
+    let dir = snippet_dir(library, &snippet.id)?;
+    if dir.exists() {
+        return Err(format!("Un snippet « {} » existe déjà dans la bibliothèque", snippet.id));
+    }
+    write(library, snippet)
+}
+
+/// Supprime un snippet (le dossier entier).
+pub fn delete(library: &str, id: &str) -> Result<(), String> {
+    let dir = snippet_dir(library, id)?;
+    if !dir.join(META_FILE).is_file() {
+        return Err(format!("« {id} » n'est pas un snippet de cette bibliothèque"));
+    }
+    fs::remove_dir_all(&dir).map_err(|e| format!("Suppression de {id}: {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -251,6 +270,30 @@ mod tests {
 
         assert_eq!(read(lib_str, "x").unwrap(), updated);
         assert!(!lib.join("x").join("main.lad").exists());
+        fs::remove_dir_all(lib).unwrap();
+    }
+
+    #[test]
+    fn create_refuses_to_overwrite() {
+        let lib = temp_library("create");
+        let lib_str = lib.to_str().unwrap();
+        create(lib_str, &sample("x")).unwrap();
+        assert!(create(lib_str, &sample("x")).is_err());
+        fs::remove_dir_all(lib).unwrap();
+    }
+
+    #[test]
+    fn delete_removes_only_snippets() {
+        let lib = temp_library("delete");
+        let lib_str = lib.to_str().unwrap();
+        write(lib_str, &sample("x")).unwrap();
+        fs::create_dir_all(lib.join("autre-dossier")).unwrap();
+
+        delete(lib_str, "x").unwrap();
+        assert!(!lib.join("x").exists());
+        assert!(delete(lib_str, "autre-dossier").is_err());
+        assert!(lib.join("autre-dossier").exists());
+        assert!(delete(lib_str, "..").is_err());
         fs::remove_dir_all(lib).unwrap();
     }
 

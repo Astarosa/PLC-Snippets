@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useSettings } from "../../state/settings";
 import { useCreateSamples, useLibrary } from "../../storage/queries";
@@ -29,10 +30,13 @@ export function Welcome() {
   if (empty) {
     return (
       <Centered title="Bibliothèque vide">
-        <p>Ajoute deux snippets d'exemple pour voir le format sur le disque.</p>
+        <p>Crée ton premier snippet, ou ajoute deux exemples pour voir le format sur le disque.</p>
+        <Link to="/new" className={`${button} inline-block`}>
+          + Nouveau snippet
+        </Link>
         <button
           type="button"
-          className={button}
+          className="ml-2 rounded-md border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
           disabled={createSamples.isPending}
           onClick={() => createSamples.mutate()}
         >

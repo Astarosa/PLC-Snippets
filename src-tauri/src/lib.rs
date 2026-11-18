@@ -20,6 +20,16 @@ async fn write_snippet(library: String, snippet: RawSnippet) -> Result<(), Strin
     library::write(&library, &snippet)
 }
 
+#[tauri::command]
+async fn create_snippet(library: String, snippet: RawSnippet) -> Result<(), String> {
+    library::create(&library, &snippet)
+}
+
+#[tauri::command]
+async fn delete_snippet(library: String, id: String) -> Result<(), String> {
+    library::delete(&library, &id)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -29,7 +39,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_snippets,
             read_snippet,
-            write_snippet
+            write_snippet,
+            create_snippet,
+            delete_snippet
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");

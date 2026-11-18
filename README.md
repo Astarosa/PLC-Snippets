@@ -52,7 +52,8 @@ Publier une version :
 src/
 ├── core/snippet/        ← logique pure, testée (aucune dépendance à Tauri)
 │   ├── schema.ts          format de snippet.json (Zod)
-│   └── parse.ts           validation, slug, recherche
+│   ├── parse.ts           validation, slug, recherche
+│   └── form.ts            formulaire ↔ snippet, règles de validation
 ├── storage/
 │   ├── repository.ts      contrat SnippetRepository
 │   ├── tauri-repository.ts  implémentation disque (commandes Rust)
@@ -60,12 +61,13 @@ src/
 │   └── sample-library.ts  snippets d'exemple
 ├── state/settings.ts    ← réglages persistés (dossier de bibliothèque)
 ├── features/
+│   ├── editor/            formulaire, CodeMirror (coloration SCL / LAD), éditeur d'interface
 │   ├── library/           liste, recherche, écran d'accueil
 │   └── snippet/           page d'un snippet, tableau d'interface
 └── components/          ← CodeBlock, CopyButton, Badge
 
 src-tauri/src/
-├── lib.rs               ← commandes exposées : list_snippets, read_snippet, write_snippet
+├── lib.rs               ← commandes : list / read / create / write / delete_snippet
 └── library.rs           ← lecture/écriture des dossiers, écriture atomique, anti « ../ »
 ```
 
@@ -96,8 +98,9 @@ Le dossier peut vivre dans Nextcloud (synchronisation) et devenir un dépôt git
 ## Feuille de route
 
 - [x] **1. Squelette** : choix du dossier, lecture, liste, recherche, détail, copie, build .exe
-- [ ] **2. MVP édition** : créer / modifier / supprimer, éditeur CodeMirror avec coloration SCL,
-      rendu Markdown des notes, index SQLite FTS5
+- [x] **2a. Édition** : créer / modifier / supprimer, éditeur CodeMirror avec coloration SCL et LADDER,
+      éditeur d'interface, validation avant écriture
+- [ ] **2b.** Rendu Markdown des notes, index SQLite FTS5
 - [ ] **3. Historique** : commit git automatique (isomorphic-git), vue diff
 - [ ] **4. DSL LADDER** : parseur, rendu SVG, génération SCL de la logique combinatoire
 - [ ] **5. Boîtes** (TON, CTU, MOVE…), export `.scl` complet, version portable

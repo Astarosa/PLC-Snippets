@@ -13,5 +13,9 @@ export interface LibraryContent {
  */
 export interface SnippetRepository {
   list(library: string): Promise<LibraryContent>;
+  /** Crée un snippet ; échoue si l'identifiant existe déjà. */
+  create(library: string, snippet: RawSnippet): Promise<void>;
+  /** Remplace un snippet existant. */
   write(library: string, snippet: RawSnippet): Promise<void>;
+  delete(library: string, id: string): Promise<void>;
 }
