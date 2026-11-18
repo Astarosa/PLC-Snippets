@@ -1,0 +1,13 @@
+// Réseau 1 : Défaut de bourrage
+"T_Bourrage".TON(IN := "Convoyeur_Marche" AND NOT "Capteur_Sortie", PT := T#8S);
+IF "T_Bourrage".Q THEN
+    "Defaut_Bourrage" := TRUE;
+END_IF;
+IF "Acquit" THEN
+    "Defaut_Bourrage" := FALSE;
+END_IF;
+
+// Réseau 2 : Comptage des pièces
+"C_Lot".CTU(CU := "Capteur_Sortie" AND NOT "M_Front_Sortie", R := "Raz_Lot", PV := 50, CV => "Nb_Pieces");
+"Lot_Complet" := "C_Lot".Q;
+"M_Front_Sortie" := "Capteur_Sortie"; // mémoire du front montant

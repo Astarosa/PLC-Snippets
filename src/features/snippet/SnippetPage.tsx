@@ -3,9 +3,11 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
 import { Badge } from "../../components/Badge";
 import { CodeBlock } from "../../components/CodeBlock";
+import type { ExportFormat } from "../../core/export/source";
 import { LANG_LABELS, type Lang } from "../../core/snippet/schema";
 import { useDeleteSnippet, useSnippet } from "../../storage/queries";
 import { LadderPreview } from "../ladder/LadderPreview";
+import { ExportMenu, type ExportStatus, StatusLine } from "../transfer/ExportMenu";
 import { ExportPanel } from "./ExportPanel";
 import { InterfaceTable } from "./InterfaceTable";
 import { StlView } from "./StlView";
@@ -16,7 +18,8 @@ export function SnippetPage() {
   const [tab, setTab] = useState<Lang>("LAD");
   const navigate = useNavigate();
   const deleteSnippet = useDeleteSnippet();
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<ExportFormat | null>(null);
+  const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
 
   // Revient sur le premier onglet disponible quand on change de snippet.
   useEffect(() => {
@@ -48,13 +51,18 @@ export function SnippetPage() {
         <div className="flex items-start gap-3">
           <h2 className="text-2xl font-semibold text-slate-100">{meta.title}</h2>
           <div className="ml-auto flex shrink-0 gap-2">
-            <button
-              type="button"
-              onClick={() => setExporting((e) => !e)}
-              className="rounded-md border border-sky-800 px-3 py-1 text-sm text-sky-200 hover:bg-sky-950"
-            >
-              Exporter
-            </button>
+            <ExportMenu
+              snippets={[snippet]}
+              onStatus={setExportStatus}
+              onPick={(id) => {
+                // Sources TIA : panneau avec nom du bloc, mnémonique et aperçu.
+                if (id === "tia-scl" || id === "tia-awl") {
+                  setExporting(id === "tia-scl" ? "SCL" : "STL");
+                  return true;
+                }
+                return false;
+              }}
+            />
             <Link
               to="/snippets/$snippetId/edit"
               params={{ snippetId: snippet.id }}
@@ -88,7 +96,15 @@ export function SnippetPage() {
         </div>
       </header>
 
-      {exporting && <ExportPanel key={snippet.id} snippet={snippet} onClose={() => setExporting(false)} />}
+      <StatusLine status={exportStatus} onClose={() => setExportStatus(null)} />
+      {exporting && (
+        <ExportPanel
+          key={`${snippet.id}-${exporting}`}
+          snippet={snippet}
+          initialFormat={exporting}
+          onClose={() => setExporting(null)}
+        />
+      )}
 
       <section className="space-y-2">
         <div className="flex gap-1">

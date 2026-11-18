@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "title": "Machine d'état convoyeur avec surveillance de transfert",
+  "summary": "FB : attente → transfert → défaut si la pièce n'arrive pas en sortie dans le temps imparti.",
+  "tags": [
+    "convoyeur",
+    "machine d'état",
+    "CASE",
+    "TON"
+  ],
+  "blockType": "FB",
+  "cpuFamilies": [
+    "S7-1200",
+    "S7-1500"
+  ],
+  "tiaVersion": "V19",
+  "interface": {
+    "input": [
+      {
+        "name": "Marche",
+        "type": "Bool",
+        "comment": "Ordre de marche"
+      },
+      {
+        "name": "Arret",
+        "type": "Bool",
+        "comment": "BP arrêt câblé NF (TRUE = non appuyé)"
+      },
+      {
+        "name": "CapteurEntree",
+        "type": "Bool",
+        "comment": "Pièce présente en entrée"
+      },
+      {
+        "name": "CapteurSortie",
+        "type": "Bool",
+        "comment": "Pièce arrivée en sortie"
+      },
+      {
+        "name": "Acquit",
+        "type": "Bool",
+        "comment": "Acquittement défaut"
+      },
+      {
+        "name": "TempsMaxTransfert",
+        "type": "Time",
+        "initial": "T#10S"
+      }
+    ],
+    "output": [
+      {
+        "name": "Moteur",
+        "type": "Bool"
+      },
+      {
+        "name": "Defaut",
+        "type": "Bool"
+      },
+      {
+        "name": "Etape",
+        "type": "Int",
+        "comment": "Étape courante (diagnostic IHM)"
+      }
+    ],
+    "static": [
+      {
+        "name": "TempoTransfert",
+        "type": "TON_TIME"
+      }
+    ],
+    "constant": [
+      {
+        "name": "ST_ATTENTE",
+        "type": "Int",
+        "initial": "0"
+      },
+      {
+        "name": "ST_TRANSFERT",
+        "type": "Int",
+        "initial": "10"
+      },
+      {
+        "name": "ST_DEFAUT",
+        "type": "Int",
+        "initial": "90"
+      }
+    ]
+  },
+  "variants": [
+    {
+      "lang": "SCL",
+      "file": "main.scl"
+    }
+  ],
+  "createdAt": "2026-11-18T12:00:00.000Z",
+  "updatedAt": "2026-11-18T12:00:00.000Z"
+}

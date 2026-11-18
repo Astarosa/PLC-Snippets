@@ -1,0 +1,2 @@
+network "Marche / arrêt avec auto-maintien"
+  ( NO "BP_Marche" | NO "KM1" ) & NO "BP_Arret" & NC "Defaut" -> COIL "KM1"

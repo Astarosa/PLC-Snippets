@@ -10,9 +10,19 @@ import { MnemonicSwitch } from "./StlView";
 const FORMAT_LABELS: Record<ExportFormat, string> = { SCL: "SCL (.scl)", STL: "LIST (.awl)" };
 
 /** Export du snippet en source externe TIA : aperçu, copie, enregistrement. */
-export function ExportPanel({ snippet, onClose }: { snippet: Snippet; onClose: () => void }) {
+export function ExportPanel({
+  snippet,
+  initialFormat,
+  onClose,
+}: {
+  snippet: Snippet;
+  initialFormat?: ExportFormat;
+  onClose: () => void;
+}) {
   const formats = availableFormats(snippet);
-  const [format, setFormat] = useState<ExportFormat>(formats[0] ?? "SCL");
+  const [format, setFormat] = useState<ExportFormat>(
+    initialFormat && formats.includes(initialFormat) ? initialFormat : (formats[0] ?? "SCL"),
+  );
   const [blockName, setBlockName] = useState(defaultBlockName(snippet));
   const stlMnemonic = snippet.variants.find((v) => v.lang === "STL")?.mnemonic ?? "DE";
   const [mnemonic, setMnemonic] = useState<Mnemonic>(stlMnemonic);

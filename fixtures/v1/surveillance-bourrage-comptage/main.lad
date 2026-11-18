@@ -1,0 +1,6 @@
+network "Défaut de bourrage"
+  NO "Convoyeur_Marche" & NC "Capteur_Sortie" & TON "T_Bourrage" PT=T#8S -> SET "Defaut_Bourrage"
+  NO "Acquit" -> RESET "Defaut_Bourrage"
+
+network "Comptage des pièces"
+  P "Capteur_Sortie" MEM="M_Front_Sortie" & CTU "C_Lot" R="Raz_Lot" PV=50 CV="Nb_Pieces" -> COIL "Lot_Complet"

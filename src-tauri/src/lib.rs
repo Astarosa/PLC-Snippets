@@ -1,4 +1,5 @@
 mod library;
+mod transfer;
 
 use library::RawSnippet;
 
@@ -45,6 +46,16 @@ async fn write_order(library: String, order: Vec<String>) -> Result<(), String> 
     library::write_order(&library, &order)
 }
 
+#[tauri::command]
+async fn read_import_source(path: String) -> Result<transfer::ImportSource, String> {
+    transfer::read_import_source(&path)
+}
+
+#[tauri::command]
+async fn write_export_zip(path: String, files: Vec<transfer::SourceFile>) -> Result<(), String> {
+    transfer::write_export_zip(&path, &files)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -59,7 +70,9 @@ pub fn run() {
             delete_snippet,
             export_source,
             read_order,
-            write_order
+            write_order,
+            read_import_source,
+            write_export_zip
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");

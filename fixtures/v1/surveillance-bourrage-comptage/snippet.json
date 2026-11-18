@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "title": "Surveillance de bourrage et comptage par lot",
+  "summary": "Défaut si la sortie reste libre 8 s convoyeur en marche ; comptage des pièces sur front montant.",
+  "tags": [
+    "convoyeur",
+    "TON",
+    "CTU",
+    "front",
+    "défaut"
+  ],
+  "blockType": "NETWORK",
+  "cpuFamilies": [
+    "S7-1200",
+    "S7-1500"
+  ],
+  "tiaVersion": "V19",
+  "variants": [
+    {
+      "lang": "LAD",
+      "file": "main.lad"
+    },
+    {
+      "lang": "SCL",
+      "file": "main.scl",
+      "generated": true
+    }
+  ],
+  "createdAt": "2026-11-18T12:00:00.000Z",
+  "updatedAt": "2026-11-18T12:00:00.000Z"
+}

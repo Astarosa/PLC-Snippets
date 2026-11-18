@@ -56,6 +56,8 @@ src/
 │   ├── parse.ts           validation, slug, recherche
 │   └── form.ts            formulaire ↔ snippet, règles de validation
 ├── core/export/         ← source externe TIA (.scl / .awl)
+├── core/io/             ← import / export : un adaptateur par format, aperçu, doublons
+├── core/snippet/migrate.ts ← migrations du format (voir CONTRIBUTING.md)
 ├── core/stl/            ← conversion des mnémoniques LIST allemand ↔ anglais
 ├── core/ladder/         ← DSL LADDER, sans dépendance
 │   ├── parse.ts           lexer + parseur, erreurs ligne / colonne
@@ -78,7 +80,8 @@ src/
 
 src-tauri/src/
 ├── lib.rs               ← commandes : list / read / create / write / delete_snippet, export_source
-└── library.rs           ← lecture/écriture des dossiers, écriture atomique, anti « ../ »
+├── library.rs           ← lecture/écriture des dossiers, écriture atomique, anti « ../ »
+└── transfer.rs          ← lecture des zip / dossiers à importer, écriture des zip d'export
 ```
 
 Règle : le Rust ne fait que des fichiers. Toute la logique métier (schéma,
@@ -121,21 +124,49 @@ Le dossier peut vivre dans Nextcloud (synchronisation) et devenir un dépôt git
       (NETWORK exporté en FC) ; variante **LIST** avec conversion allemand ↔ anglais
 - [x] **7. LADDER en drag & drop** : palette de symboles, dépôt en série / parallèle / bobine,
       inspecteur d'opérandes et de paramètres, synchronisé avec le texte DSL
-- [ ] **8.** Rendu Markdown des notes, historique git
+- [x] **8. Import / export et partage** : zip PLC Snippets (complet), sources TIA .scl / .awl
+      (import et export), formats versionnés avec migrations
+- [ ] **9.** SimaticML et PLCopen XML (LADDER depuis TIA / Machine Expert), rendu Markdown des notes
 
 L'icône est générée depuis `app-icon.png` : `npx tauri icon app-icon.png`.
 
-## Export vers TIA Portal
+## Import, export et partage entre amis
 
-Bouton **Exporter** sur la page d'un snippet : aperçu, copie ou enregistrement du fichier.
+### Importer — un seul bouton, le format est reconnu tout seul
 
-1. Dans TIA : *Sources externes* → *Ajouter un nouveau fichier externe* → choisir le `.scl` ou `.awl`
-2. Clic droit sur la source → *Générer les blocs à partir de la source*
+**Importer ▾** (en haut de la liste) → *Un fichier…* ou *Un dossier…*, ou **glisser** un fichier / dossier
+sur la fenêtre. Formats reconnus :
 
-- Un **NETWORK** devient une FC sans interface : ses variables globales doivent exister dans la table des variables API.
-- Sans variante SCL, le SCL est généré depuis le LADDER au moment de l'export.
-- Pour le **LIST**, choisis la mnémonique du projet TIA (*Options → Paramètres → Général → Mnémonique*).
-  Le LIST n'existe pas sur S7-1200.
+| Source | Contenu |
+|---|---|
+| zip ou dossier PLC Snippets | un snippet, plusieurs, ou une bibliothèque entière (format **complet**) |
+| source externe TIA `.scl` / `.awl` | chaque FB / FC devient un snippet (interface + corps ; **passerelle avec perte**) |
+
+Un aperçu montre ce qui a été reconnu, ce qui sera perdu, et propose pour chaque doublon :
+*Garder les deux* (dossier renommé `-2`), *Remplacer le mien* ou *Ignorer*.
+Les zips sont contrôlés côté Rust (chemins hors archive refusés, taille plafonnée).
+
+### Exporter — un menu par destination
+
+**Exporter ▾** sur la page d'un snippet, ou en bas de la liste après *Sélectionner…* pour plusieurs snippets :
+
+| Famille | Format | Conserve |
+|---|---|---|
+| Partager | PLC Snippets (.zip) | tout : variantes, notes, commentaires, tags |
+| TIA Portal | Source externe SCL (.scl) | SCL seul (généré depuis le LADDER si besoin) |
+| TIA Portal | Source externe LIST (.awl) | LIST seul, dans la mnémonique choisie |
+| TIA Portal / Schneider | SimaticML, PLCopen XML | bientôt |
+
+Pour partager avec un ami : **toujours le zip** (le seul format complet).
+
+Dans TIA : *Sources externes* → *Ajouter un nouveau fichier externe* → clic droit → *Générer les blocs*.
+Un NETWORK devient une FC sans interface (ses variables globales doivent exister dans l'API).
+
+### Compatibilité entre versions de l'application
+
+Chaque snippet porte `schemaVersion`. Un snippet plus ancien est migré automatiquement à la lecture ;
+un snippet plus récent que l'application est refusé avec un message demandant de la mettre à jour.
+Les règles pour faire évoluer le format sont dans [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Mnémoniques LIST
 

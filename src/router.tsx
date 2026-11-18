@@ -9,6 +9,7 @@ import { EditSnippetPage, NewSnippetPage } from "./features/editor/pages";
 import { Sidebar } from "./features/library/Sidebar";
 import { Welcome } from "./features/library/Welcome";
 import { SnippetPage } from "./features/snippet/SnippetPage";
+import { FileDropTarget, ImportDialog } from "./features/transfer/ImportDialog";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -17,6 +18,8 @@ const rootRoute = createRootRoute({
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
+      <FileDropTarget />
+      <ImportDialog />
     </div>
   ),
 });

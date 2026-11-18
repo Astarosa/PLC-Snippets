@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CURRENT_VERSION } from "./migrate";
 
 // Messages de validation en français.
 z.config(z.locales.fr());
@@ -44,7 +45,7 @@ export const variantSchema = z.object({
 });
 
 export const snippetMetaSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(CURRENT_VERSION),
   title: z.string().min(1, "Le titre est obligatoire"),
   summary: z.string().default(""),
   tags: z.array(z.string().min(1)).default([]),

@@ -9,6 +9,8 @@ const LANG_TONE = { LAD: "lad", SCL: "scl", STL: "stl" } as const satisfies Reco
 
 import { useSettings } from "../../state/settings";
 import { useLibrary, useReorder } from "../../storage/queries";
+import { ExportMenu, type ExportStatus, StatusLine } from "../transfer/ExportMenu";
+import { ImportButton } from "../transfer/ImportButton";
 
 /** Glisser vertical d'un snippet : position d'origine et point d'insertion (0..n). */
 interface ListDrag {
@@ -28,6 +30,17 @@ export function Sidebar() {
   const reorder = useReorder();
   const [drag, setDrag] = useState<ListDrag | null>(null);
   const canReorder = query.trim() === "";
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const selectedSnippets = (data?.snippets ?? []).filter((s) => selected.has(s.id));
 
   useEffect(() => {
     if (!drag) return;
@@ -90,13 +103,16 @@ export function Sidebar() {
             </button>
           )}
         </div>
-        <Link
-          to="/new"
-          disabled={!libraryPath}
-          className="block rounded-md bg-sky-600 px-3 py-1.5 text-center text-sm font-medium text-white hover:bg-sky-500 aria-disabled:pointer-events-none aria-disabled:opacity-40"
-        >
-          + Nouveau snippet
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            to="/new"
+            disabled={!libraryPath}
+            className="block flex-1 rounded-md bg-sky-600 px-3 py-1.5 text-center text-sm font-medium text-white hover:bg-sky-500 aria-disabled:pointer-events-none aria-disabled:opacity-40"
+          >
+            + Nouveau snippet
+          </Link>
+          <ImportButton disabled={!libraryPath} />
+        </div>
         <input
           type="search"
           value={query}
@@ -124,20 +140,30 @@ export function Sidebar() {
               >
                 {lineBefore && <div className="absolute -top-1 right-1 left-1 h-0.5 rounded bg-sky-400" />}
                 {lineAfter && <div className="absolute right-1 -bottom-1 left-1 h-0.5 rounded bg-sky-400" />}
-                <button
-                  type="button"
-                  aria-label={`Déplacer ${s.meta.title}`}
-                  title={canReorder ? "Glisser pour réordonner" : "Vide la recherche pour réordonner"}
-                  disabled={!canReorder}
-                  onPointerDown={(e) => {
-                    if (!canReorder) return;
-                    e.preventDefault();
-                    setDrag({ from: i, startY: e.clientY, active: false, insertAt: null });
-                  }}
-                  className="w-5 shrink-0 cursor-grab rounded-l-md text-center text-xs text-slate-600 opacity-0 group-hover:opacity-100 hover:text-slate-300 disabled:cursor-not-allowed"
-                >
-                  ⋮⋮
-                </button>
+                {selecting ? (
+                  <input
+                    type="checkbox"
+                    aria-label={`Sélectionner ${s.meta.title}`}
+                    checked={selected.has(s.id)}
+                    onChange={() => toggle(s.id)}
+                    className="mx-1 shrink-0"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`Déplacer ${s.meta.title}`}
+                    title={canReorder ? "Glisser pour réordonner" : "Vide la recherche pour réordonner"}
+                    disabled={!canReorder}
+                    onPointerDown={(e) => {
+                      if (!canReorder) return;
+                      e.preventDefault();
+                      setDrag({ from: i, startY: e.clientY, active: false, insertAt: null });
+                    }}
+                    className="w-5 shrink-0 cursor-grab rounded-l-md text-center text-xs text-slate-600 opacity-0 group-hover:opacity-100 hover:text-slate-300 disabled:cursor-not-allowed"
+                  >
+                    ⋮⋮
+                  </button>
+                )}
                 <Link
                   to="/snippets/$snippetId"
                   params={{ snippetId: s.id }}
@@ -184,6 +210,57 @@ export function Sidebar() {
           </div>
         )}
       </nav>
+
+      {libraryPath && (data?.snippets.length ?? 0) > 0 && (
+        <footer className="space-y-2 border-t border-slate-800 p-3">
+          {selecting ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setSelected(
+                    selected.size === visible.length ? new Set() : new Set(visible.map((s) => s.id)),
+                  )
+                }
+                className="text-xs text-sky-400 hover:underline"
+              >
+                {selected.size === visible.length ? "Aucun" : "Tout"}
+              </button>
+              <span className="text-xs text-slate-400">
+                {selected.size} sélectionné{selected.size > 1 ? "s" : ""}
+              </span>
+              <div className="ml-auto flex items-center gap-2">
+                <ExportMenu
+                  snippets={selectedSnippets}
+                  onStatus={setExportStatus}
+                  align="left"
+                  direction="up"
+                  label="Exporter"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelecting(false);
+                    setSelected(new Set());
+                  }}
+                  className="text-xs text-slate-400 hover:text-slate-200"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSelecting(true)}
+              className="text-xs text-sky-400 hover:underline"
+            >
+              Sélectionner pour exporter plusieurs snippets…
+            </button>
+          )}
+          <StatusLine status={exportStatus} onClose={() => setExportStatus(null)} />
+        </footer>
+      )}
     </aside>
   );
 }
