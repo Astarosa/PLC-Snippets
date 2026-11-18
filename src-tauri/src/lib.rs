@@ -30,6 +30,11 @@ async fn delete_snippet(library: String, id: String) -> Result<(), String> {
     library::delete(&library, &id)
 }
 
+#[tauri::command]
+async fn export_source(path: String, content: String) -> Result<(), String> {
+    library::export_source(&path, &content)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -41,7 +46,8 @@ pub fn run() {
             read_snippet,
             write_snippet,
             create_snippet,
-            delete_snippet
+            delete_snippet,
+            export_source
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");

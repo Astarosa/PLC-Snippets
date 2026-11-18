@@ -1,5 +1,6 @@
 import { formatLadError, parseLadder } from "../ladder/parse";
 import { ladderToScl } from "../ladder/scl";
+import type { Mnemonic } from "../stl/mnemonics";
 import { type RawSnippet, slugify, toRawSnippet } from "./parse";
 import {
   type BlockType,
@@ -22,6 +23,7 @@ export interface SnippetForm {
   interface: SnippetInterface;
   lad: VariantForm;
   scl: VariantForm & { generated: boolean };
+  stl: VariantForm & { mnemonic: Mnemonic };
   readme: string;
   createdAt: string | null;
 }
@@ -62,6 +64,7 @@ export function emptyForm(): SnippetForm {
     interface: emptyInterface(),
     lad: { enabled: true, file: "main.lad", content: "" },
     scl: { enabled: true, file: "main.scl", content: "", generated: false },
+    stl: { enabled: false, file: "main.awl", content: "", mnemonic: "DE" },
     readme: "",
     createdAt: null,
   };
@@ -71,6 +74,7 @@ export function formFromSnippet(snippet: Snippet): SnippetForm {
   const { meta } = snippet;
   const lad = snippet.variants.find((v) => v.lang === "LAD");
   const scl = snippet.variants.find((v) => v.lang === "SCL");
+  const stl = snippet.variants.find((v) => v.lang === "STL");
   return {
     id: snippet.id,
     title: meta.title,
@@ -86,6 +90,12 @@ export function formFromSnippet(snippet: Snippet): SnippetForm {
       file: scl?.file ?? "main.scl",
       content: scl?.content ?? "",
       generated: scl?.generated ?? false,
+    },
+    stl: {
+      enabled: !!stl,
+      file: stl?.file ?? "main.awl",
+      content: stl?.content ?? "",
+      mnemonic: stl?.mnemonic ?? "DE",
     },
     readme: snippet.readme ?? "",
     createdAt: meta.createdAt,
@@ -139,11 +149,12 @@ export function formToRaw(input: SnippetForm, now = new Date().toISOString()): F
     errors.push("Identifiant invalide : minuscules, chiffres, « - » et « _ » uniquement (ex. tempo-defaut).");
   }
 
-  const variants = [form.lad, form.scl].filter((v) => v.enabled);
-  if (variants.length === 0) errors.push("Active au moins une variante (LADDER ou SCL).");
+  const variants = [form.lad, form.scl, form.stl].filter((v) => v.enabled);
+  if (variants.length === 0) errors.push("Active au moins une variante (LADDER, SCL ou LIST).");
   for (const [label, v] of [
     ["LADDER", form.lad],
     ["SCL", form.scl],
+    ["LIST", form.stl],
   ] as const) {
     if (v.enabled && !v.content.trim())
       errors.push(`Le code ${label} est vide (désactive la variante si besoin).`);
@@ -184,6 +195,9 @@ export function formToRaw(input: SnippetForm, now = new Date().toISOString()): F
       ...(form.lad.enabled ? [{ lang: "LAD" as const, file: form.lad.file }] : []),
       ...(form.scl.enabled
         ? [{ lang: "SCL" as const, file: form.scl.file, generated: form.scl.generated }]
+        : []),
+      ...(form.stl.enabled
+        ? [{ lang: "STL" as const, file: form.stl.file, mnemonic: form.stl.mnemonic }]
         : []),
     ],
     createdAt: form.createdAt ?? now,

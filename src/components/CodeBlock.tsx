@@ -2,7 +2,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
 import { useMemo } from "react";
-import { lad, scl } from "../features/editor/languages";
+import { lad, scl, stl } from "../features/editor/languages";
 import { CopyButton } from "./CopyButton";
 
 /** Affichage du code en lecture seule, avec la même coloration que l'éditeur. */
@@ -13,10 +13,10 @@ export function CodeBlock({
 }: {
   code: string;
   title: string;
-  language: "scl" | "lad";
+  language: "scl" | "lad" | "stl";
 }) {
   const extensions = useMemo(
-    () => [language === "scl" ? scl() : lad(), EditorView.editable.of(false)],
+    () => [{ scl, lad, stl }[language](), EditorView.editable.of(false)],
     [language],
   );
   return (

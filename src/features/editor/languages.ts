@@ -98,5 +98,48 @@ const ladParser: StreamParser<null> = {
   tokenTable: { globalTag: tags.special(tags.variableName) },
 };
 
+interface StlState {
+  /** true tant que l'instruction de la ligne n'a pas été lue */
+  expectInstruction: boolean;
+}
+
+const stlParser: StreamParser<StlState> = {
+  name: "stl",
+  startState: () => ({ expectInstruction: true }),
+  token(stream, state) {
+    if (stream.sol()) state.expectInstruction = true;
+    if (stream.eatSpace()) return null;
+    if (stream.match("//")) {
+      stream.skipToEnd();
+      return "comment";
+    }
+    if (state.expectInstruction && stream.match(/^[A-Za-z_]\w{0,3}:/)) return "labelName";
+    if (state.expectInstruction && stream.match(/^(NETWORK|TITLE)\b/i)) {
+      stream.skipToEnd();
+      return "heading";
+    }
+    if (state.expectInstruction && stream.match(/^[^\s;/]+/)) {
+      state.expectInstruction = false;
+      return "keyword";
+    }
+    if (stream.match(/^"[^"]*"?/)) return "globalTag";
+    if (stream.match(/^#[A-Za-z_]\w*(\.[A-Za-z_]\w*)*/)) return "variableName";
+    if (stream.match(/^[A-Za-z]+#[\w.:+-]+/)) return "number";
+    if (
+      stream.match(
+        /^%?(PEB|PEW|PED|PAB|PAW|PAD|PIB|PIW|PID|PQB|PQW|PQD|EB|EW|ED|AB|AW|AD|IB|IW|ID|QB|QW|QD|MB|MW|MD|DBX|DBB|DBW|DBD|E|A|I|Q|M|T|Z|C|DB)\s*\d+(\.\d+)?/i,
+      )
+    )
+      return "typeName";
+    if (stream.match(/^[+-]?\d+(\.\d+)?/)) return "number";
+    if (stream.match(/^:=/)) return "operator";
+    stream.next();
+    return null;
+  },
+  languageData: { commentTokens: { line: "//" } },
+  tokenTable: { globalTag: tags.special(tags.variableName) },
+};
+
 export const scl = () => StreamLanguage.define(sclParser);
+export const stl = () => StreamLanguage.define(stlParser);
 export const lad = () => StreamLanguage.define(ladParser);

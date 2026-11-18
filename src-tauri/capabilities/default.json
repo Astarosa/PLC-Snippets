@@ -10,6 +10,7 @@
     "dialog:allow-open",
     "store:default",
     "clipboard-manager:allow-write-text",
-    "dialog:allow-ask"
+    "dialog:allow-ask",
+    "dialog:allow-save"
   ]
 }

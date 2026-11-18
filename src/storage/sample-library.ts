@@ -33,6 +33,7 @@ export function sampleSnippets(now = new Date().toISOString()): RawSnippet[] {
         variants: [
           { lang: "LAD", file: "main.lad" },
           { lang: "SCL", file: "main.scl", generated: false },
+          { lang: "STL", file: "main.awl", mnemonic: "DE" },
         ],
         createdAt: now,
         updatedAt: now,
@@ -48,6 +49,16 @@ export function sampleSnippets(now = new Date().toISOString()): RawSnippet[] {
         "main.lad": [
           'network "Marche / arrêt avec auto-maintien"',
           '  ( NO "BP_Marche" | NO "KM1" ) & NO "BP_Arret" & NC "Defaut" -> COIL "KM1"',
+          "",
+        ].join("\n"),
+        "main.awl": [
+          "U(    ",
+          'O     "BP_Marche"',
+          'O     "KM1"',
+          ")     ",
+          'U     "BP_Arret"   // câblé NF',
+          'UN    "Defaut"',
+          '=     "KM1"',
           "",
         ].join("\n"),
         "main.scl": [

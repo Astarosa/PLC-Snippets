@@ -3,10 +3,12 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
 import { Badge } from "../../components/Badge";
 import { CodeBlock } from "../../components/CodeBlock";
-import type { Lang } from "../../core/snippet/schema";
+import { LANG_LABELS, type Lang } from "../../core/snippet/schema";
 import { useDeleteSnippet, useSnippet } from "../../storage/queries";
 import { LadderPreview } from "../ladder/LadderPreview";
+import { ExportPanel } from "./ExportPanel";
 import { InterfaceTable } from "./InterfaceTable";
+import { StlView } from "./StlView";
 
 export function SnippetPage() {
   const { snippetId } = useParams({ from: "/snippets/$snippetId" });
@@ -14,6 +16,7 @@ export function SnippetPage() {
   const [tab, setTab] = useState<Lang>("LAD");
   const navigate = useNavigate();
   const deleteSnippet = useDeleteSnippet();
+  const [exporting, setExporting] = useState(false);
 
   // Revient sur le premier onglet disponible quand on change de snippet.
   useEffect(() => {
@@ -45,6 +48,13 @@ export function SnippetPage() {
         <div className="flex items-start gap-3">
           <h2 className="text-2xl font-semibold text-slate-100">{meta.title}</h2>
           <div className="ml-auto flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => setExporting((e) => !e)}
+              className="rounded-md border border-sky-800 px-3 py-1 text-sm text-sky-200 hover:bg-sky-950"
+            >
+              Exporter
+            </button>
             <Link
               to="/snippets/$snippetId/edit"
               params={{ snippetId: snippet.id }}
@@ -78,6 +88,8 @@ export function SnippetPage() {
         </div>
       </header>
 
+      {exporting && <ExportPanel key={snippet.id} snippet={snippet} onClose={() => setExporting(false)} />}
+
       <section className="space-y-2">
         <div className="flex gap-1">
           {snippet.variants.map((v) => (
@@ -91,7 +103,7 @@ export function SnippetPage() {
                   : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              {v.lang === "LAD" ? "LADDER" : "SCL"}
+              {LANG_LABELS[v.lang]}
               {v.generated && <span className="ml-1 text-[10px] text-slate-500">(généré)</span>}
             </button>
           ))}
@@ -101,11 +113,20 @@ export function SnippetPage() {
             <LadderPreview source={variant.content} />
           </div>
         )}
-        <CodeBlock
-          code={variant.content}
-          title={variant.file}
-          language={variant.lang === "LAD" ? "lad" : "scl"}
-        />
+        {variant.lang === "STL" ? (
+          <StlView
+            key={snippet.id}
+            code={variant.content}
+            file={variant.file}
+            saved={variant.mnemonic ?? "DE"}
+          />
+        ) : (
+          <CodeBlock
+            code={variant.content}
+            title={variant.file}
+            language={variant.lang === "LAD" ? "lad" : "scl"}
+          />
+        )}
       </section>
 
       <InterfaceTable iface={meta.interface} />

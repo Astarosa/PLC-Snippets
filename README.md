@@ -1,7 +1,8 @@
 # PLC Snippets
 
-Bibliothèque de snippets automate façon Gists : LADDER et son équivalent SCL,
-ou SCL seul pour ce qui n'a pas d'équivalent LADDER lisible.
+Bibliothèque de snippets automate façon Gists : LADDER, SCL et LIST (STL / AWL),
+avec génération du SCL depuis le LADDER, conversion des mnémoniques LIST allemand ↔ anglais
+et export en source externe TIA Portal (.scl / .awl).
 Application de bureau Windows (Tauri 2 + React 19).
 
 ## Prérequis (Windows)
@@ -54,6 +55,8 @@ src/
 │   ├── schema.ts          format de snippet.json (Zod)
 │   ├── parse.ts           validation, slug, recherche
 │   └── form.ts            formulaire ↔ snippet, règles de validation
+├── core/export/         ← source externe TIA (.scl / .awl)
+├── core/stl/            ← conversion des mnémoniques LIST allemand ↔ anglais
 ├── core/ladder/         ← DSL LADDER, sans dépendance
 │   ├── parse.ts           lexer + parseur, erreurs ligne / colonne
 │   ├── scl.ts             génération du SCL équivalent
@@ -72,7 +75,7 @@ src/
 └── components/          ← CodeBlock, CopyButton, Badge
 
 src-tauri/src/
-├── lib.rs               ← commandes : list / read / create / write / delete_snippet
+├── lib.rs               ← commandes : list / read / create / write / delete_snippet, export_source
 └── library.rs           ← lecture/écriture des dossiers, écriture atomique, anti « ../ »
 ```
 
@@ -89,7 +92,8 @@ MaBibliotheque/
     ├── snippet.json   métadonnées (voir src/core/snippet/schema.ts)
     ├── README.md      notes (optionnel)
     ├── main.lad       DSL LADDER (optionnel)
-    └── main.scl       CORPS du bloc SCL (sans l'interface)
+    ├── main.scl       CORPS du bloc SCL (sans l'interface)
+    └── main.awl       LIST (optionnel), mnémonique enregistrée dans snippet.json
 ```
 
 - Le nom du dossier est l'identifiant : minuscules, chiffres, `-` et `_`.
@@ -111,7 +115,36 @@ Le dossier peut vivre dans Nextcloud (synchronisation) et devenir un dépôt git
       (syntaxe : [docs/ladder-dsl.md](docs/ladder-dsl.md))
 - [x] **5. Boîtes et fronts** : TON / TOF / TP / TONR, CTU / CTD / CTUD, MOVE, ADD / SUB / MUL / DIV,
       fronts P / N, comparateurs, rendu et génération SCL
-- [ ] **6.** Export `.scl` complet (bloc avec interface) à importer dans TIA, rendu Markdown des notes,
-      historique git
+- [x] **6. Export TIA** : bloc FB / FC complet avec interface, en `.scl` ou `.awl`
+      (NETWORK exporté en FC) ; variante **LIST** avec conversion allemand ↔ anglais
+- [ ] **7. LADDER en drag & drop** : palette de symboles, édition directe dans le réseau
+- [ ] **8.** Rendu Markdown des notes, historique git
 
 L'icône est générée depuis `app-icon.png` : `npx tauri icon app-icon.png`.
+
+## Export vers TIA Portal
+
+Bouton **Exporter** sur la page d'un snippet : aperçu, copie ou enregistrement du fichier.
+
+1. Dans TIA : *Sources externes* → *Ajouter un nouveau fichier externe* → choisir le `.scl` ou `.awl`
+2. Clic droit sur la source → *Générer les blocs à partir de la source*
+
+- Un **NETWORK** devient une FC sans interface : ses variables globales doivent exister dans la table des variables API.
+- Sans variante SCL, le SCL est généré depuis le LADDER au moment de l'export.
+- Pour le **LIST**, choisis la mnémonique du projet TIA (*Options → Paramètres → Général → Mnémonique*).
+  Le LIST n'existe pas sur S7-1200.
+
+## Mnémoniques LIST
+
+La conversion se fait par position (instruction en début de ligne, puis opérande), pas par
+rechercher / remplacer : `A` est l'instruction ET en anglais mais une sortie en allemand.
+
+| Allemand | Anglais | | Allemand | Anglais |
+|---|---|---|---|---|
+| `U`, `UN`, `U(` | `A`, `AN`, `A(` | | `E 0.0`, `EW 10` | `I 0.0`, `IW 10` |
+| `SPA`, `SPB`, `SPBN` | `JU`, `JC`, `JCN` | | `A 4.0`, `AW 20` | `Q 4.0`, `QW 20` |
+| `AUF`, `BEA`, `BEB` | `OPN`, `BEU`, `BEC` | | `PEW`, `PAW` | `PIW`, `PQW` |
+| `ZV`, `ZR` | `CU`, `CD` | | `Z 3` | `C 3` |
+| `SI`, `SV`, `SE`, `SA` | `SP`, `SE`, `SD`, `SF` | | | |
+
+Mnémoniques, variables locales, mémentos (`M`), DB et constantes sont laissés tels quels.

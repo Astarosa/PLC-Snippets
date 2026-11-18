@@ -114,6 +114,23 @@ describe("LADDER dans le formulaire", () => {
   });
 });
 
+describe("LIST dans le formulaire", () => {
+  it("enregistre la variante LIST avec sa mnémonique", () => {
+    const form = filledForm();
+    form.stl = { enabled: true, file: "main.awl", content: "U E 0.0\n= A 4.0", mnemonic: "DE" };
+    const result = formToRaw(form, NOW);
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+    expect(JSON.parse(result.raw.meta).variants[1]).toEqual({
+      lang: "STL",
+      file: "main.awl",
+      mnemonic: "DE",
+    });
+    const parsed = parseRawSnippet(result.raw);
+    if (!parsed.ok) throw new Error(parsed.invalid.errors.join("\n"));
+    expect(formFromSnippet(parsed.snippet).stl).toEqual({ ...form.stl, content: "U E 0.0\n= A 4.0\n" });
+  });
+});
+
 describe("formFromSnippet", () => {
   it("fait l'aller-retour sans perte sur les exemples", () => {
     for (const raw of sampleSnippets(NOW)) {

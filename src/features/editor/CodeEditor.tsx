@@ -2,9 +2,9 @@ import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
 import CodeMirror from "@uiw/react-codemirror";
 import { useMemo } from "react";
-import { lad, scl } from "./languages";
+import { lad, scl, stl } from "./languages";
 
-const LANGUAGES = { scl, lad, markdown: () => markdown() };
+const LANGUAGES = { scl, lad, stl, markdown: () => markdown() };
 
 export function CodeEditor({
   value,

@@ -3,7 +3,9 @@ import { useState } from "react";
 import { CodeBlock } from "../../components/CodeBlock";
 import { generateScl, isSclGenerated, type SnippetForm, suggestId } from "../../core/snippet/form";
 import { BLOCK_TYPES, CPU_FAMILIES } from "../../core/snippet/schema";
+import { convertStl, detectMnemonic } from "../../core/stl/mnemonics";
 import { LadderPreview } from "../ladder/LadderPreview";
+import { MnemonicSwitch } from "../snippet/StlView";
 import { CodeEditor } from "./CodeEditor";
 import { InterfaceEditor } from "./InterfaceEditor";
 
@@ -13,6 +15,7 @@ const label = "mb-1 block text-xs font-medium text-slate-400";
 
 const LAD_PLACEHOLDER =
   'network "Titre du réseau"\n  ( NO "BP_Marche" | NO "KM1" ) & NO "BP_Arret" -> COIL "KM1"';
+const STL_PLACEHOLDER = 'U(\nO     "BP_Marche"\nO     "KM1"\n)\nU     "BP_Arret"\n=     "KM1"';
 const SCL_PLACEHOLDER = '"KM1" := ("BP_Marche" OR "KM1") AND "BP_Arret";';
 
 export function SnippetEditor({
@@ -242,6 +245,42 @@ export function SnippetEditor({
             placeholder={SCL_PLACEHOLDER}
           />
         )}
+      </VariantSection>
+
+      <VariantSection
+        title="LIST"
+        hint="STL / AWL (S7-300/400 et S7-1500, pas de LIST sur S7-1200)."
+        enabled={form.stl.enabled}
+        onToggle={(enabled) => set("stl", { ...form.stl, enabled })}
+      >
+        <div className="flex items-center gap-3">
+          <MnemonicSwitch
+            value={form.stl.mnemonic}
+            onChange={(mnemonic) =>
+              set("stl", {
+                ...form.stl,
+                mnemonic,
+                content: convertStl(form.stl.content, form.stl.mnemonic, mnemonic),
+              })
+            }
+          />
+          <span className="text-xs text-slate-500">
+            Convertit le code entre mnémoniques allemandes et anglaises.
+          </span>
+        </div>
+        <CodeEditor
+          language="stl"
+          value={form.stl.content}
+          onChange={(content) => {
+            // Code collé dans une zone vide : on reconnaît sa mnémonique.
+            const mnemonic = form.stl.content.trim()
+              ? form.stl.mnemonic
+              : (detectMnemonic(content) ?? form.stl.mnemonic);
+            set("stl", { ...form.stl, content, mnemonic });
+          }}
+          minHeight="160px"
+          placeholder={STL_PLACEHOLDER}
+        />
       </VariantSection>
 
       <section>

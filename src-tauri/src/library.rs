@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 pub const META_FILE: &str = "snippet.json";
 pub const README_FILE: &str = "README.md";
 /// Extensions des fichiers de code reconnus.
-pub const CODE_EXTENSIONS: [&str; 2] = ["lad", "scl"];
+pub const CODE_EXTENSIONS: [&str; 3] = ["lad", "scl", "awl"];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -199,6 +199,17 @@ pub fn delete(library: &str, id: &str) -> Result<(), String> {
     fs::remove_dir_all(&dir).map_err(|e| format!("Suppression de {id}: {e}"))
 }
 
+/// Écrit une source exportée à l'emplacement choisi par l'utilisateur (boîte « Enregistrer sous »).
+/// Seules les extensions de sources TIA sont acceptées.
+pub fn export_source(path: &str, content: &str) -> Result<(), String> {
+    let path = Path::new(path);
+    let ext = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
+    if !matches!(ext.as_deref(), Some("scl" | "awl")) {
+        return Err("L'export doit être un fichier .scl ou .awl".into());
+    }
+    fs::write(path, content).map_err(|e| format!("Écriture de {}: {e}", path.display()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -237,6 +248,7 @@ mod tests {
     fn validates_code_files() {
         assert!(is_valid_code_file("main.scl"));
         assert!(is_valid_code_file("main.lad"));
+        assert!(is_valid_code_file("main.awl"));
         assert!(!is_valid_code_file("main.exe"));
         assert!(!is_valid_code_file("../main.scl"));
         assert!(!is_valid_code_file("main"));
@@ -294,6 +306,17 @@ mod tests {
         assert!(delete(lib_str, "autre-dossier").is_err());
         assert!(lib.join("autre-dossier").exists());
         assert!(delete(lib_str, "..").is_err());
+        fs::remove_dir_all(lib).unwrap();
+    }
+
+    #[test]
+    fn export_accepts_only_tia_sources() {
+        let lib = temp_library("export");
+        let ok = lib.join("FB_Test.SCL");
+        export_source(ok.to_str().unwrap(), "FUNCTION_BLOCK").unwrap();
+        assert_eq!(fs::read_to_string(&ok).unwrap(), "FUNCTION_BLOCK");
+        assert!(export_source(lib.join("x.exe").to_str().unwrap(), "x").is_err());
+        assert!(export_source(lib.join("sans-extension").to_str().unwrap(), "x").is_err());
         fs::remove_dir_all(lib).unwrap();
     }
 

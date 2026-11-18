@@ -2,6 +2,10 @@ import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Badge } from "../../components/Badge";
 import { matchesQuery } from "../../core/snippet/parse";
+import { LANG_SHORT, type Lang } from "../../core/snippet/schema";
+
+const LANG_TONE = { LAD: "lad", SCL: "scl", STL: "stl" } as const satisfies Record<Lang, string>;
+
 import { useSettings } from "../../state/settings";
 import { useLibrary } from "../../storage/queries";
 
@@ -72,8 +76,8 @@ export function Sidebar() {
                 <div className="text-sm text-slate-100">{s.meta.title}</div>
                 <div className="mt-1 flex flex-wrap gap-1">
                   {s.variants.map((v) => (
-                    <Badge key={v.lang} tone={v.lang === "LAD" ? "lad" : "scl"}>
-                      {v.lang}
+                    <Badge key={v.lang} tone={LANG_TONE[v.lang]}>
+                      {LANG_SHORT[v.lang]}
                     </Badge>
                   ))}
                   <Badge>{s.meta.blockType}</Badge>

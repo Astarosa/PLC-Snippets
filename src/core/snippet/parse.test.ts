@@ -15,7 +15,7 @@ describe("parseRawSnippet", () => {
     const result = parseRawSnippet(raw);
     if (!result.ok) throw new Error("devrait être valide");
     expect(result.snippet.meta.interface.input).toEqual([]);
-    expect(result.snippet.variants.map((v) => v.lang)).toEqual(["LAD", "SCL"]);
+    expect(result.snippet.variants.map((v) => v.lang)).toEqual(["LAD", "SCL", "STL"]);
   });
 
   it("signale un JSON cassé", () => {
