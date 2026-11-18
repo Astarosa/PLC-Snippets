@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { sortByOrder } from "../core/snippet/order";
 import { parseRawSnippet, type RawSnippet } from "../core/snippet/parse";
 import type { InvalidSnippet, Snippet } from "../core/snippet/schema";
 import type { LibraryContent, SnippetRepository } from "./repository";
@@ -13,7 +14,8 @@ export const tauriRepository: SnippetRepository = {
       if (result.ok) content.snippets.push(result.snippet);
       else content.invalid.push(result.invalid);
     }
-    content.snippets.sort((a, b) => a.meta.title.localeCompare(b.meta.title, "fr"));
+    const order = await invoke<string[]>("read_order", { library }).catch(() => [] as string[]);
+    content.snippets = sortByOrder(content.snippets, order);
     return content;
   },
 
@@ -23,6 +25,10 @@ export const tauriRepository: SnippetRepository = {
 
   async write(library, snippet) {
     await invoke("write_snippet", { library, snippet });
+  },
+
+  async writeOrder(library, order) {
+    await invoke("write_order", { library, order });
   },
 
   async delete(library, id) {

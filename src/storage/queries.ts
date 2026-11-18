@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { sortByOrder } from "../core/snippet/order";
 import type { RawSnippet } from "../core/snippet/parse";
 import { useSettings } from "../state/settings";
+import type { LibraryContent } from "./repository";
 import { sampleSnippets } from "./sample-library";
 import { tauriRepository as repo } from "./tauri-repository";
 
@@ -41,3 +43,21 @@ export const useCreateSamples = () =>
   useLibraryMutation<void>(async (library) => {
     for (const snippet of sampleSnippets()) await repo.write(library, snippet);
   });
+
+/** Réordonne la liste : mise à jour immédiate de l'affichage, puis écriture de library.json. */
+export function useReorder() {
+  const library = useSettings((s) => s.libraryPath);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (order: string[]) => {
+      if (!library) throw new Error("Aucune bibliothèque sélectionnée");
+      await repo.writeOrder(library, order);
+    },
+    onMutate: (order) => {
+      queryClient.setQueryData<LibraryContent>(libraryKey(library), (old) =>
+        old ? { ...old, snippets: sortByOrder(old.snippets, order) } : old,
+      );
+    },
+    onError: () => queryClient.invalidateQueries({ queryKey: libraryKey(library) }),
+  });
+}

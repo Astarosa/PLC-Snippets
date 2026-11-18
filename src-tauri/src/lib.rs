@@ -35,6 +35,16 @@ async fn export_source(path: String, content: String) -> Result<(), String> {
     library::export_source(&path, &content)
 }
 
+#[tauri::command]
+async fn read_order(library: String) -> Result<Vec<String>, String> {
+    library::read_order(&library)
+}
+
+#[tauri::command]
+async fn write_order(library: String, order: Vec<String>) -> Result<(), String> {
+    library::write_order(&library, &order)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -47,7 +57,9 @@ pub fn run() {
             write_snippet,
             create_snippet,
             delete_snippet,
-            export_source
+            export_source,
+            read_order,
+            write_order
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");

@@ -241,3 +241,183 @@ export function canRemoveOutput(program: LadProgram, ref: OutputRef): boolean {
   if (rung.outputs.length > 1) return true;
   return endsWithBox(rung.condition);
 }
+
+/* ---------- Recherche par identité ---------- */
+
+/** Adresse d'un élément (contact, boîte… ou bobine) retrouvé par identité d'objet. */
+export function findRef(program: LadProgram, target: Expr | Output): ElementRef | null {
+  for (const [n, network] of program.networks.entries()) {
+    for (const [r, rung] of network.rungs.entries()) {
+      const o = rung.outputs.indexOf(target as Output);
+      if (o >= 0) return { kind: "output", network: n, rung: r, output: o };
+      const search = (e: Expr, path: number[]): number[] | null => {
+        if (e === target) return path;
+        for (const [i, child] of (children(e) ?? []).entries()) {
+          const found = search(child, [...path, i]);
+          if (found) return found;
+        }
+        return null;
+      };
+      const path = search(rung.condition, []);
+      if (path) return { kind: "expr", network: n, rung: r, path };
+    }
+  }
+  return null;
+}
+
+/* ---------- Déplacement ---------- */
+
+/**
+ * Déplace un élément déjà posé : `insert` le pose (copie) à sa nouvelle place,
+ * puis l'original est retiré. S'il était seul dans son rung, il est remplacé par
+ * un contact à compléter, pour ne pas perdre les bobines du rung.
+ */
+export function moveExpr(
+  program: LadProgram,
+  element: Expr,
+  insert: (program: LadProgram, copy: Expr) => LadProgram,
+): { program: LadProgram; moved: Expr } {
+  const copy = structuredClone(element);
+  const placed = insert(program, copy);
+  const original = findRef(placed, element);
+  if (original?.kind !== "expr") return { program: placed, moved: copy };
+  const alone = original.path.length === 0;
+  const next = alone
+    ? replaceExpr(placed, original, newElement({ kind: "contact", variant: "NO" }))
+    : removeExpr(placed, original);
+  return { program: next, moved: copy };
+}
+
+/** Déplace une bobine vers un autre rung (ou le même). */
+export function moveOutput(
+  program: LadProgram,
+  output: Output,
+  network: number,
+  rung: number,
+): { program: LadProgram; moved: Output } {
+  const copy = structuredClone(output);
+  const placed = addOutput(program, network, rung, copy);
+  const original = findRef(placed, output);
+  if (original?.kind !== "output") return { program: placed, moved: copy };
+  // Un rung qui perd sa seule bobine en reçoit une à compléter (normalisation).
+  return { program: removeOutput(placed, original), moved: copy };
+}
+
+/* ---------- Plages (sélection de plusieurs éléments en série) ---------- */
+
+/** Éléments consécutifs [from..to] d'une série située à `parent` dans la condition. */
+export interface RangeRef {
+  network: number;
+  rung: number;
+  parent: number[];
+  from: number;
+  to: number;
+}
+
+function exprAt(root: Expr, path: number[]): Expr | null {
+  let e: Expr | undefined = root;
+  for (const i of path) e = e ? children(e)?.[i] : undefined;
+  return e ?? null;
+}
+
+/**
+ * Plage qui va de l'élément `a` à l'élément `b` (Maj + clic) : les enfants consécutifs
+ * de la série la plus profonde qui les contient tous les deux. null si impossible
+ * (éléments dans deux rungs, ou dans deux branches d'une parallèle sans série commune).
+ */
+export function rangeBetween(program: LadProgram, a: ExprRef, b: ExprRef): RangeRef | null {
+  if (a.network !== b.network || a.rung !== b.rung) return null;
+  const root = program.networks[a.network]?.rungs[a.rung]?.condition;
+  if (!root) return null;
+  let common = 0;
+  while (common < a.path.length && common < b.path.length && a.path[common] === b.path[common]) common++;
+  for (let k = common; k >= 0; k--) {
+    const node = exprAt(root, a.path.slice(0, k));
+    if (node?.type === "series" && a.path.length > k && b.path.length > k) {
+      return {
+        network: a.network,
+        rung: a.rung,
+        parent: a.path.slice(0, k),
+        from: Math.min(a.path[k], b.path[k]),
+        to: Math.max(a.path[k], b.path[k]),
+      };
+    }
+  }
+  return null;
+}
+
+/** Le chemin d'un élément est-il dans la plage ? */
+export function inRange(range: RangeRef, network: number, rung: number, path: number[]): boolean {
+  if (range.network !== network || range.rung !== rung || path.length <= range.parent.length) return false;
+  if (range.parent.some((v, i) => path[i] !== v)) return false;
+  const i = path[range.parent.length];
+  return i >= range.from && i <= range.to;
+}
+
+function updateSeriesAt(program: LadProgram, range: RangeRef, fn: (items: Expr[]) => Expr[]): LadProgram {
+  return updateExpr(program, { network: range.network, rung: range.rung, path: range.parent }, (node) => {
+    if (node.type !== "series") return node;
+    const items = fn(node.items);
+    return items.length === 0 ? null : { type: "series", items };
+  });
+}
+
+/** Branche parallèle autour de la plage : (éléments de la plage) | element. */
+export function wrapParallel(program: LadProgram, range: RangeRef, element: Expr): LadProgram {
+  return updateSeriesAt(program, range, (items) => {
+    const selected = items.slice(range.from, range.to + 1);
+    const branch: Expr = selected.length === 1 ? selected[0] : { type: "series", items: selected };
+    return [
+      ...items.slice(0, range.from),
+      { type: "parallel", branches: [branch, element] },
+      ...items.slice(range.to + 1),
+    ];
+  });
+}
+
+export function removeRange(program: LadProgram, range: RangeRef): LadProgram {
+  return updateSeriesAt(program, range, (items) => [
+    ...items.slice(0, range.from),
+    ...items.slice(range.to + 1),
+  ]);
+}
+
+/* ---------- Rungs, réseaux, commentaires ---------- */
+
+export function removeRung(program: LadProgram, network: number, rung: number): LadProgram {
+  return mapRung(program, network, rung, () => null);
+}
+
+export function removeNetwork(program: LadProgram, network: number): LadProgram {
+  return { networks: program.networks.filter((_, i) => i !== network) };
+}
+
+const cleanComment = (text: string) => {
+  const lines = text.split("\n").map((l) => l.trimEnd());
+  while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  return lines.length > 0 ? lines.join("\n") : undefined;
+};
+
+export function setNetworkComment(program: LadProgram, network: number, text: string): LadProgram {
+  return {
+    networks: program.networks.map((n, i) => (i === network ? { ...n, comment: cleanComment(text) } : n)),
+  };
+}
+
+export function setRungComment(program: LadProgram, network: number, rung: number, text: string): LadProgram {
+  return mapRung(program, network, rung, (r) => ({ ...r, comment: cleanComment(text) }));
+}
+
+/** Ajoute un rung (déjà construit) à la fin d'un réseau ; network = longueur → nouveau réseau. */
+export function appendRung(
+  program: LadProgram,
+  network: number,
+  rung: LadProgram["networks"][0]["rungs"][0],
+): LadProgram {
+  if (network >= program.networks.length) {
+    return normalizeProgram({ networks: [...program.networks, { title: null, rungs: [rung] }] });
+  }
+  return normalizeProgram({
+    networks: program.networks.map((n, i) => (i === network ? { ...n, rungs: [...n.rungs, rung] } : n)),
+  });
+}

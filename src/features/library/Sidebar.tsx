@@ -1,13 +1,22 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "../../components/Badge";
+import { moveId } from "../../core/snippet/order";
 import { matchesQuery } from "../../core/snippet/parse";
 import { LANG_SHORT, type Lang } from "../../core/snippet/schema";
 
 const LANG_TONE = { LAD: "lad", SCL: "scl", STL: "stl" } as const satisfies Record<Lang, string>;
 
 import { useSettings } from "../../state/settings";
-import { useLibrary } from "../../storage/queries";
+import { useLibrary, useReorder } from "../../storage/queries";
+
+/** Glisser vertical d'un snippet : position d'origine et point d'insertion (0..n). */
+interface ListDrag {
+  from: number;
+  startY: number;
+  active: boolean;
+  insertAt: number | null;
+}
 
 export function Sidebar() {
   const libraryPath = useSettings((s) => s.libraryPath);
@@ -16,6 +25,44 @@ export function Sidebar() {
   const [query, setQuery] = useState("");
 
   const visible = useMemo(() => (data?.snippets ?? []).filter((s) => matchesQuery(s, query)), [data, query]);
+  const reorder = useReorder();
+  const [drag, setDrag] = useState<ListDrag | null>(null);
+  const canReorder = query.trim() === "";
+
+  useEffect(() => {
+    if (!drag) return;
+    const move = (e: PointerEvent) => {
+      const active = drag.active || Math.abs(e.clientY - drag.startY) > 4;
+      let insertAt: number | null = null;
+      const item = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-index]");
+      if (item) {
+        const index = Number(item.getAttribute("data-index"));
+        const box = item.getBoundingClientRect();
+        insertAt = e.clientY < box.top + box.height / 2 ? index : index + 1;
+      }
+      setDrag({ ...drag, active, insertAt });
+    };
+    const up = () => {
+      if (drag.active && drag.insertAt !== null) {
+        const to = drag.insertAt > drag.from ? drag.insertAt - 1 : drag.insertAt;
+        if (to !== drag.from)
+          reorder.mutate(
+            moveId(
+              visible.map((s) => s.id),
+              drag.from,
+              to,
+            ),
+          );
+      }
+      setDrag(null);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+  }, [drag, reorder, visible]);
 
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-slate-800 bg-slate-900">
@@ -64,28 +111,56 @@ export function Sidebar() {
         {isLoading && <p className="p-2 text-sm text-slate-500">Lecture de la bibliothèque…</p>}
         {error && <p className="p-2 text-sm text-red-400">{String(error)}</p>}
 
-        <ul className="space-y-1">
-          {visible.map((s) => (
-            <li key={s.id}>
-              <Link
-                to="/snippets/$snippetId"
-                params={{ snippetId: s.id }}
-                className="block rounded-md px-2.5 py-2 hover:bg-slate-800"
-                activeProps={{ className: "bg-slate-800 ring-1 ring-slate-700" }}
+        <ul className={`space-y-1 ${drag?.active ? "cursor-grabbing select-none" : ""}`}>
+          {visible.map((s, i) => {
+            const lineBefore = drag?.active && drag.insertAt === i && i !== drag.from && i !== drag.from + 1;
+            const lineAfter =
+              drag?.active && i === visible.length - 1 && drag.insertAt === visible.length && i !== drag.from;
+            return (
+              <li
+                key={s.id}
+                data-index={i}
+                className={`group relative flex items-stretch ${drag?.active && drag.from === i ? "opacity-40" : ""}`}
               >
-                <div className="text-sm text-slate-100">{s.meta.title}</div>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {s.variants.map((v) => (
-                    <Badge key={v.lang} tone={LANG_TONE[v.lang]}>
-                      {LANG_SHORT[v.lang]}
-                    </Badge>
-                  ))}
-                  <Badge>{s.meta.blockType}</Badge>
-                </div>
-              </Link>
-            </li>
-          ))}
+                {lineBefore && <div className="absolute -top-1 right-1 left-1 h-0.5 rounded bg-sky-400" />}
+                {lineAfter && <div className="absolute right-1 -bottom-1 left-1 h-0.5 rounded bg-sky-400" />}
+                <button
+                  type="button"
+                  aria-label={`Déplacer ${s.meta.title}`}
+                  title={canReorder ? "Glisser pour réordonner" : "Vide la recherche pour réordonner"}
+                  disabled={!canReorder}
+                  onPointerDown={(e) => {
+                    if (!canReorder) return;
+                    e.preventDefault();
+                    setDrag({ from: i, startY: e.clientY, active: false, insertAt: null });
+                  }}
+                  className="w-5 shrink-0 cursor-grab rounded-l-md text-center text-xs text-slate-600 opacity-0 group-hover:opacity-100 hover:text-slate-300 disabled:cursor-not-allowed"
+                >
+                  ⋮⋮
+                </button>
+                <Link
+                  to="/snippets/$snippetId"
+                  params={{ snippetId: s.id }}
+                  className="block min-w-0 flex-1 rounded-md px-2 py-2 hover:bg-slate-800"
+                  activeProps={{ className: "bg-slate-800 ring-1 ring-slate-700" }}
+                >
+                  <div className="text-sm text-slate-100">{s.meta.title}</div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {s.variants.map((v) => (
+                      <Badge key={v.lang} tone={LANG_TONE[v.lang]}>
+                        {LANG_SHORT[v.lang]}
+                      </Badge>
+                    ))}
+                    <Badge>{s.meta.blockType}</Badge>
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
+        {reorder.error && (
+          <p className="p-2 text-xs text-red-400">Ordre non enregistré : {String(reorder.error)}</p>
+        )}
 
         {data && query && visible.length === 0 && (
           <p className="p-2 text-sm text-slate-500">Aucun résultat pour « {query} ».</p>

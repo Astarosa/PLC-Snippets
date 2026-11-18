@@ -68,6 +68,12 @@ export function ShapeView({ shape }: { shape: Shape }) {
           {shape.text}
         </text>
       );
+    case "note":
+      return (
+        <text x={shape.x} y={shape.y} fill="#94a3b8" fontSize={11} fontStyle="italic">
+          {`// ${shape.text}`}
+        </text>
+      );
     case "contact": {
       const cx = shape.x + CELL_W / 2;
       const { y } = shape;

@@ -18,4 +18,6 @@ export interface SnippetRepository {
   /** Remplace un snippet existant. */
   write(library: string, snippet: RawSnippet): Promise<void>;
   delete(library: string, id: string): Promise<void>;
+  /** Enregistre l'ordre d'affichage (identifiants). */
+  writeOrder(library: string, order: string[]): Promise<void>;
 }

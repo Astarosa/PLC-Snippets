@@ -115,10 +115,14 @@ export interface Output {
 export interface Rung {
   condition: Expr;
   outputs: Output[];
+  /** Commentaire « // » placé avant ou sur la ligne du rung (plusieurs lignes séparées par \n). */
+  comment?: string;
 }
 
 export interface Network {
   title: string | null;
+  /** Commentaire « // » placé avant la ligne « network ». */
+  comment?: string;
   rungs: Rung[];
 }
 

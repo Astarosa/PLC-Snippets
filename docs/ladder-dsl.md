@@ -45,6 +45,9 @@ network "Marche / arrêt avec auto-maintien"
 - `network "Titre"` commence un nouveau réseau (le titre est optionnel). Le mot-clé peut être omis pour le premier.
 - Un réseau peut contenir plusieurs rungs, l'un sous l'autre.
 - Les retours à la ligne sont libres ; `//` commente jusqu'à la fin de la ligne.
+- Un commentaire placé **avant `network`** (ou sur sa ligne) appartient au réseau ; placé **avant un rung
+  ou sur ses lignes**, il appartient au rung. Il est affiché sur le schéma, conservé par l'éditeur visuel
+  et repris dans le SCL généré.
 - Les mots-clés ne sont pas sensibles à la casse (`no`, `NO`, `No`).
 
 ## Génération du SCL

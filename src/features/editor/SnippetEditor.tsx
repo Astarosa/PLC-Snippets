@@ -219,11 +219,6 @@ export function SnippetEditor({
               </button>
             ))}
           </div>
-          {ladMode === "visual" && form.lad.content.includes("//") && (
-            <span className="text-xs text-amber-400">
-              {"Les commentaires « // » du texte sont retirés quand tu modifies en visuel."}
-            </span>
-          )}
         </div>
         {ladMode === "visual" ? (
           <VisualEditor

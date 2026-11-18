@@ -21,6 +21,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const META_FILE: &str = "snippet.json";
+/// Réglages de la bibliothèque (ordre d'affichage…), à sa racine : synchronisé avec elle.
+pub const LIBRARY_FILE: &str = "library.json";
 pub const README_FILE: &str = "README.md";
 /// Extensions des fichiers de code reconnus.
 pub const CODE_EXTENSIONS: [&str; 3] = ["lad", "scl", "awl"];
@@ -210,6 +212,30 @@ pub fn export_source(path: &str, content: &str) -> Result<(), String> {
     fs::write(path, content).map_err(|e| format!("Écriture de {}: {e}", path.display()))
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct LibrarySettings {
+    #[serde(default)]
+    order: Vec<String>,
+}
+
+/// Ordre d'affichage des snippets (identifiants). Vide si jamais réglé.
+pub fn read_order(library: &str) -> Result<Vec<String>, String> {
+    let path = library_dir(library)?.join(LIBRARY_FILE);
+    match fs::read_to_string(&path) {
+        Ok(text) => serde_json::from_str::<LibrarySettings>(&text)
+            .map(|s| s.order)
+            .map_err(|e| format!("{LIBRARY_FILE} illisible : {e}")),
+        Err(_) => Ok(Vec::new()),
+    }
+}
+
+pub fn write_order(library: &str, order: &[String]) -> Result<(), String> {
+    let path = library_dir(library)?.join(LIBRARY_FILE);
+    let order: Vec<String> = order.iter().filter(|id| is_valid_id(id)).cloned().collect();
+    let json = serde_json::to_string_pretty(&LibrarySettings { order }).map_err(|e| e.to_string())?;
+    write_atomic(&path, &format!("{json}\n"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -317,6 +343,18 @@ mod tests {
         assert_eq!(fs::read_to_string(&ok).unwrap(), "FUNCTION_BLOCK");
         assert!(export_source(lib.join("x.exe").to_str().unwrap(), "x").is_err());
         assert!(export_source(lib.join("sans-extension").to_str().unwrap(), "x").is_err());
+        fs::remove_dir_all(lib).unwrap();
+    }
+
+    #[test]
+    fn order_roundtrip_and_defaults() {
+        let lib = temp_library("order");
+        let lib_str = lib.to_str().unwrap();
+        assert_eq!(read_order(lib_str).unwrap(), Vec::<String>::new());
+        write_order(lib_str, &["b".into(), "../evil".into(), "a".into()]).unwrap();
+        assert_eq!(read_order(lib_str).unwrap(), vec!["b".to_string(), "a".to_string()]);
+        // library.json n'est pas un snippet
+        assert!(list(lib_str).unwrap().is_empty());
         fs::remove_dir_all(lib).unwrap();
     }
 

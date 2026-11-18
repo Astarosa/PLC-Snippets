@@ -178,7 +178,8 @@ function outputsToScl(outputs: Output[], rlo: SclExpr): string[] {
 function rungToScl(rung: Rung): string {
   const code: RungCode = { before: [], after: [] };
   const rlo = compile(rung.condition, null, code) ?? atom("TRUE");
-  return [...code.before, ...outputsToScl(rung.outputs, rlo), ...code.after].join("\n");
+  const comment = rung.comment === undefined ? [] : rung.comment.split("\n").map((l) => `// ${l}`.trimEnd());
+  return [...comment, ...code.before, ...outputsToScl(rung.outputs, rlo), ...code.after].join("\n");
 }
 
 export function ladderToScl(program: LadProgram): string {
@@ -187,7 +188,9 @@ export function ladderToScl(program: LadProgram): string {
       program.networks.length > 1 || network.title
         ? [`// Réseau ${i + 1}${network.title ? ` : ${network.title}` : ""}`]
         : [];
-    return [...header, ...network.rungs.map(rungToScl)].join("\n");
+    const comment =
+      network.comment === undefined ? [] : network.comment.split("\n").map((l) => `// ${l}`.trimEnd());
+    return [...header, ...comment, ...network.rungs.map(rungToScl)].join("\n");
   });
   return `${blocks.join("\n\n")}\n`;
 }

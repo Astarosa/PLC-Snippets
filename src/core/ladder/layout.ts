@@ -25,6 +25,8 @@ export const WIRE_Y = 38;
 export const RAIL_X = 16;
 export const TITLE_H = 28;
 const RUNG_GAP = 16;
+/** Hauteur d'une ligne de commentaire au-dessus d'un réseau ou d'un rung. */
+export const NOTE_H = 15;
 
 /** Adresse de l'élément dessiné, pour la sélection et le dépôt dans l'éditeur visuel. */
 export interface ShapeRef {
@@ -54,7 +56,8 @@ export type Shape =
       params: { name: string; value: string; direction: "in" | "out" }[];
       ref?: ShapeRef;
     }
-  | { kind: "title"; x: number; y: number; text: string };
+  | { kind: "title"; x: number; y: number; text: string }
+  | { kind: "note"; x: number; y: number; text: string; scope: "network" | "rung" };
 
 export interface RungFrame {
   index: number;
@@ -274,9 +277,17 @@ export function layoutNetwork(network: Network): Diagram {
   // Toutes les bobines d'un réseau sur la même colonne, au moins 1 cellule après la condition.
   const coilCol = Math.max(2, ...network.rungs.map(conditionWidth)) + 1;
   const hasCoils = network.rungs.some((r) => r.outputs.length > 0);
+  for (const line of network.comment?.split("\n") ?? []) {
+    shapes.push({ kind: "note", x: RAIL_X, y: y + 12, text: line, scope: "network" });
+    y += NOTE_H;
+  }
   const rungs: RungFrame[] = [];
   network.rungs.forEach((rung, i) => {
     if (i > 0) y += RUNG_GAP;
+    for (const line of rung.comment?.split("\n") ?? []) {
+      shapes.push({ kind: "note", x: RAIL_X + 10, y: y + 12, text: line, scope: "rung" });
+      y += NOTE_H;
+    }
     const height = placeRung(rung, i, y, coilCol, shapes);
     rungs.push({ index: i, top: y, height, wireY: wireY(y, 0) });
     y += height;

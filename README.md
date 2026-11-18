@@ -156,16 +156,25 @@ Mnémoniques, variables locales, mémentos (`M`), DB et constantes sont laissés
 
 Dans l'éditeur d'un snippet, section LADDER, onglet **Visuel** (l'onglet **Texte** reste disponible) :
 
-- **Glisser** un symbole de la palette vers une zone bleue, ou **cliquer** le symbole puis la zone.
+- **Ajouter** : glisser un symbole de la palette vers une zone bleue, ou **cliquer** le symbole puis la zone.
   - petites zones à gauche / à droite d'un élément : insertion **en série**
   - zone sous un élément : nouvelle **branche parallèle**
   - colonne des bobines : bobine supplémentaire sur le rung
   - « nouveau rung », « nouveau réseau »
-- **Cliquer** un élément pour l'éditer dans le bandeau du haut (opérande, NO/NC, paramètres de boîte…).
-  Un nom saisi sans guillemets (`Moteur`) devient `"Moteur"`. **Suppr** efface l'élément sélectionné.
-- Les éléments ajoutés portent `"???"` : remplace-le par ta variable.
+- **Déplacer** : glisser un élément déjà posé (contact, boîte, bobine) vers une zone bleue.
+- **Supprimer** : sélectionner puis **Suppr**, bouton *Supprimer*, ou glisser l'élément sur la **corbeille**.
+  Boutons *Supprimer le rung* et *Supprimer le réseau* pour le reste.
+- **Branche parallèle autour de plusieurs éléments** : clic sur le premier, **Maj + clic** sur le dernier,
+  puis *Branche parallèle autour* (ou glisser un symbole dans la zone sous la sélection).
+- **Modifier** : clic sur un élément, puis le bandeau du haut (opérande, NO/NC, paramètres de boîte).
+  Pas de guillemets à taper : `Moteur`, `Mot clé` ou `DB_Ligne.Marche` deviennent `"Moteur"`, `"Mot clé"`, `"DB_Ligne".Marche`.
+- **Commentaires** de réseau (sous le titre) et de rung (dans le bandeau) : écrits en `//` dans le fichier
+  LADDER, rattachés à leur réseau ou rung, affichés sur le schéma et repris dans le SCL généré.
 
-Le texte DSL reste la référence : chaque modification visuelle le réécrit dans un format standard
-(les commentaires `//` du texte ne sont pas conservés). Limites actuelles : on ne déplace pas encore un
-élément existant à la souris, et une branche parallèle se crée sous un seul élément (pour englober
-plusieurs contacts en série, passe par l'onglet Texte : `( NO "A" & NO "B" | NO "C" )`).
+Le texte DSL reste la référence : chaque modification visuelle le réécrit dans un format standard.
+
+## Ordre des snippets
+
+Glisser la poignée ⋮⋮ (à gauche d'un snippet, au survol) vers le haut ou le bas.
+L'ordre est enregistré dans `library.json` à la racine de la bibliothèque (synchronisé avec elle).
+Les nouveaux snippets arrivent à la fin, triés par titre. Le glisser est désactivé pendant une recherche.

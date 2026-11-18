@@ -37,11 +37,18 @@ export function printRung(rung: Rung): string {
   return `${condition} -> ${rung.outputs.map((o) => `${o.kind} ${o.operand.text}`).join(", ")}`;
 }
 
+const commentLines = (comment: string | undefined, indent: string) =>
+  comment === undefined ? [] : comment.split("\n").map((l) => `${indent}// ${l}`.trimEnd());
+
 export function printLadder(program: LadProgram): string {
   if (program.networks.length === 0) return "";
   const blocks = program.networks.map((network) => {
     const header = network.title !== null ? `network "${network.title}"` : "network";
-    return [header, ...network.rungs.map((r) => `  ${printRung(r)}`)].join("\n");
+    return [
+      ...commentLines(network.comment, ""),
+      header,
+      ...network.rungs.flatMap((r) => [...commentLines(r.comment, "  "), `  ${printRung(r)}`]),
+    ].join("\n");
   });
   return `${blocks.join("\n\n")}\n`;
 }

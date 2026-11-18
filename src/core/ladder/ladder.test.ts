@@ -192,3 +192,20 @@ describe("ladderToScl", () => {
     );
   });
 });
+
+describe("commentaires dans le SCL généré", () => {
+  it("reprend les commentaires de réseau et de rung", () => {
+    expect(
+      scl(
+        '// Pompe de relevage\nnetwork "Pompe"\n  // marche si niveau haut\n  NO "Niveau_Haut" -> COIL "Pompe"',
+      ),
+    ).toBe(
+      [
+        "// Réseau 1 : Pompe",
+        "// Pompe de relevage",
+        "// marche si niveau haut",
+        '"Pompe" := "Niveau_Haut";',
+      ].join("\n"),
+    );
+  });
+});

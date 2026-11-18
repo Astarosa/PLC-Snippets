@@ -47,8 +47,9 @@ interface Token {
 }
 
 const MEMBER = String.raw`(?:\.(?:"[^"\n]*"|[A-Za-z_]\w*|\d+))*`;
-const PATTERNS: [TokenKind | "skip", RegExp][] = [
-  ["skip", /^(?:[ \t\r]+|\/\/[^\n]*)/],
+const PATTERNS: [TokenKind | "skip" | "comment", RegExp][] = [
+  ["skip", /^[ \t\r]+/],
+  ["comment", /^\/\/[^\n]*/],
   ["string", new RegExp(`^"[^"\\n]*"${MEMBER}`)],
   ["local", new RegExp(`^#[A-Za-z_]\\w*${MEMBER}`)],
   ["absolute", /^%[IQM][XBWD]?\d+(?:\.\d+)?/i],
@@ -68,8 +69,18 @@ class LadSyntaxError extends Error {
   }
 }
 
+interface Comment {
+  line: number;
+  text: string;
+}
+
 function tokenize(source: string): Token[] {
+  return lex(source).tokens;
+}
+
+function lex(source: string): { tokens: Token[]; comments: Comment[] } {
   const tokens: Token[] = [];
+  const comments: Comment[] = [];
   let line = 1;
   let col = 1;
   let rest = source;
@@ -87,12 +98,13 @@ function tokenize(source: string): Token[] {
       throw new LadSyntaxError(`Caractère inattendu « ${rest[0]} »${hint}`, line, col);
     }
     const text = match.m[0];
-    if (match.kind !== "skip") tokens.push({ kind: match.kind, text, line, col });
+    if (match.kind === "comment") comments.push({ line, text: text.replace(/^\/\/ ?/, "").trimEnd() });
+    else if (match.kind !== "skip") tokens.push({ kind: match.kind, text, line, col });
     rest = rest.slice(text.length);
     col += text.length;
   }
   tokens.push({ kind: "eof", text: "fin du texte", line, col });
-  return tokens;
+  return { tokens, comments };
 }
 
 const CONTACTS = new Set<string>(["NO", "NC"]);
@@ -110,6 +122,9 @@ function endsWithBox(expr: Expr): boolean {
 
 class Parser {
   private pos = 0;
+  /** Lignes des en-têtes « network » et étendue (lignes) de chaque rung : pour rattacher les commentaires. */
+  readonly headers: { network: Network; line: number | null }[] = [];
+  readonly spans: { rung: Rung; start: number; end: number }[] = [];
   constructor(private readonly tokens: Token[]) {}
 
   private peek(offset = 0): Token {
@@ -144,8 +159,9 @@ class Parser {
 
   private network(first: boolean): Network {
     let title: string | null = null;
+    let headerLine: number | null = null;
     if (this.isWord("network")) {
-      this.next();
+      headerLine = this.next().line;
       if (this.peek().kind === "string" && /^"[^"]*"$/.test(this.peek().text))
         title = this.next().text.slice(1, -1);
     } else if (!first) {
@@ -155,10 +171,19 @@ class Parser {
     while (this.peek().kind !== "eof" && !this.isWord("network")) rungs.push(this.rung());
     if (rungs.length === 0)
       this.fail(this.peek(), "Réseau vide : il faut au moins un rung (contacts -> bobine)");
-    return { title, rungs };
+    const network: Network = { title, rungs };
+    this.headers.push({ network, line: headerLine });
+    return network;
   }
 
   private rung(): Rung {
+    const start = this.peek().line;
+    const rung = this.rungBody();
+    this.spans.push({ rung, start, end: this.tokens[this.pos - 1].line });
+    return rung;
+  }
+
+  private rungBody(): Rung {
     const condition = this.expr();
     if (!this.isSymbol("->")) {
       if (endsWithBox(condition)) return { condition, outputs: [] };
@@ -317,9 +342,40 @@ function example(param: string): string {
 
 export type LadParseResult = { ok: true; program: LadProgram } | { ok: false; error: LadError };
 
+/** Rattache chaque commentaire au rung qui le contient ou le suit, ou au réseau dont il précède l'en-tête. */
+function attachComments(parser: Parser, comments: Comment[]) {
+  const append = (target: { comment?: string }, text: string) => {
+    target.comment = target.comment === undefined ? text : `${target.comment}\n${text}`;
+  };
+  for (const c of comments) {
+    const inside = parser.spans.find((s) => s.start <= c.line && c.line <= s.end);
+    if (inside) {
+      append(inside.rung, c.text);
+      continue;
+    }
+    const header = parser.headers.find((h) => h.line === c.line);
+    if (header) {
+      append(header.network, c.text);
+      continue;
+    }
+    const nextHeader = parser.headers
+      .filter((h) => h.line !== null && h.line > c.line)
+      .sort((a, b) => (a.line ?? 0) - (b.line ?? 0))[0];
+    const nextRung = parser.spans.filter((s) => s.start > c.line).sort((a, b) => a.start - b.start)[0];
+    if (nextHeader && (!nextRung || (nextHeader.line ?? 0) < nextRung.start))
+      append(nextHeader.network, c.text);
+    else if (nextRung) append(nextRung.rung, c.text);
+    else if (parser.spans.length > 0) append(parser.spans[parser.spans.length - 1].rung, c.text);
+  }
+}
+
 export function parseLadder(source: string): LadParseResult {
   try {
-    return { ok: true, program: new Parser(tokenize(source)).program() };
+    const { tokens, comments } = lex(source);
+    const parser = new Parser(tokens);
+    const program = parser.program();
+    attachComments(parser, comments);
+    return { ok: true, program };
   } catch (e) {
     if (e instanceof LadSyntaxError) {
       return { ok: false, error: { message: e.message, line: e.line, col: e.col } };
@@ -330,15 +386,27 @@ export function parseLadder(source: string): LadParseResult {
 
 export type ValueParseResult = { ok: true; value: Value } | { ok: false; error: string };
 
+/** Saisie « nue » : ni "…", ni #locale, ni %adresse, ni constante (10, T#5S, TRUE…). */
+function isBareName(text: string): boolean {
+  if (/^["#%]/.test(text)) return false;
+  if (/^[+-]?\d/.test(text)) return false;
+  if (/^[A-Za-z_]+#/.test(text)) return false;
+  return !/^(TRUE|FALSE)$/i.test(text);
+}
+
 /**
  * Lit un opérande ou une valeur saisi dans l'inspecteur de l'éditeur visuel.
- * Un nom nu (Moteur) devient une variable API ("Moteur").
+ * Les guillemets sont facultatifs pour les variables API :
+ *   Moteur → "Moteur"   ·   Mot clé → "Mot clé"   ·   DB_Ligne.Marche → "DB_Ligne".Marche
  */
 export function parseValueText(input: string, allowLiteral: boolean): ValueParseResult {
   const text = input.trim();
   if (!text) return { ok: false, error: "Valeur vide" };
-  const bare = /^[A-Za-z_]\w*$/.test(text) && !/^(TRUE|FALSE)$/i.test(text);
-  const source = bare ? `"${text}"` : text;
+  let source = text;
+  if (isBareName(text)) {
+    const dot = text.indexOf(".");
+    source = dot > 0 ? `"${text.slice(0, dot).trim()}"${text.slice(dot)}` : `"${text}"`;
+  }
   let tokens: Token[];
   try {
     tokens = tokenize(source).filter((t) => t.kind !== "eof");
@@ -353,7 +421,21 @@ export function parseValueText(input: string, allowLiteral: boolean): ValueParse
   const literal = t.kind === "literal" || (t.kind === "word" && /^(TRUE|FALSE)$/i.test(t.text));
   if (literal && allowLiteral) return { ok: true, value: { kind: "literal", text: t.text.toUpperCase() } };
   if (literal) return { ok: false, error: "Une variable est attendue ici, pas une constante" };
-  return { ok: false, error: 'Attendu : "Mnémonique", #Locale, %I0.0 ou une constante' };
+  return { ok: false, error: "Attendu : un nom de variable, #Locale, %I0.0 ou une constante" };
+}
+
+/**
+ * Texte proposé à l'édition : une variable API s'affiche sans guillemets quand
+ * la relecture redonne exactement le même opérande ("Moteur" → Moteur).
+ */
+export function toEditableText(text: string): string {
+  const m = /^"([^"]*)"(.*)$/.exec(text);
+  if (!m) return text;
+  const [, name, members] = m;
+  const bare = `${name}${members}`;
+  if (!name.trim() || name.includes(".") || name !== name.trim() || !isBareName(bare)) return text;
+  const back = parseValueText(bare, false);
+  return back.ok && back.value.text === text ? bare : text;
 }
 
 export const formatLadError = (e: LadError) => `ligne ${e.line}, colonne ${e.col} : ${e.message}`;

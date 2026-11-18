@@ -11,12 +11,19 @@ import {
   canRemoveOutput,
   type ElementRef,
   getExpr,
+  insertParallel,
+  newElement,
+  type RangeRef,
   removeExpr,
   removeOutput,
+  removeRange,
+  removeRung,
   replaceExpr,
   replaceOutput,
+  setRungComment,
+  wrapParallel,
 } from "../../core/ladder/edit";
-import { parseValueText } from "../../core/ladder/parse";
+import { parseValueText, toEditableText } from "../../core/ladder/parse";
 
 const field =
   "w-full rounded border bg-slate-950 px-2 py-1 font-mono text-[13px] text-slate-100 focus:outline-none";
@@ -35,13 +42,15 @@ function ValueField({
   optional?: boolean;
   onCommit: (value: Value | null) => void;
 }) {
-  const [text, setText] = useState(value);
-  useEffect(() => setText(value), [value]);
+  // Les variables API s'affichent sans guillemets : on tape juste le nom.
+  const shown = toEditableText(value);
+  const [text, setText] = useState(shown);
+  useEffect(() => setText(shown), [shown]);
   const parsed = text.trim() === "" && optional ? null : parseValueText(text, allowLiteral);
   const error = parsed && !parsed.ok ? parsed.error : null;
 
   const commit = () => {
-    if (text === value) return;
+    if (text === shown) return;
     if (parsed === null) onCommit(null);
     else if (parsed.ok) onCommit(parsed.value);
   };
@@ -54,6 +63,9 @@ function ValueField({
       </span>
       <input
         value={text}
+        placeholder={
+          allowLiteral ? "Variable, #locale, %I0.0 ou constante" : "Nom de variable, #locale ou %I0.0"
+        }
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
@@ -62,7 +74,7 @@ function ValueField({
             e.preventDefault();
             commit();
           }
-          if (e.key === "Escape") setText(value);
+          if (e.key === "Escape") setText(shown);
         }}
         className={`${field} ${error ? "border-amber-700" : "border-slate-700 focus:border-sky-600"}`}
       />
@@ -104,7 +116,7 @@ const COMPARE_OPS = ["==", "<>", ">", "<", ">=", "<="] as const;
 const COILS = ["COIL", "NCOIL", "SET", "RESET"] as const;
 
 /** Propriétés de l'élément sélectionné dans l'éditeur visuel. */
-export function Inspector({
+function ElementInspector({
   program,
   selected,
   onChange,
@@ -284,7 +296,7 @@ function Panel({
       <div className="flex items-center gap-3">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-300">{title}</h4>
         <p className="text-[11px] text-slate-500">
-          Entrée ou clic ailleurs pour appliquer. Un nom nu devient "Mnémonique".
+          Entrée ou clic ailleurs pour appliquer. Pas besoin de guillemets pour une variable API.
         </p>
         <button
           type="button"
@@ -297,6 +309,124 @@ function Panel({
         </button>
       </div>
       <div className="flex flex-wrap items-start gap-3">{children}</div>
+    </div>
+  );
+}
+
+const actionButton =
+  "rounded border border-slate-600 px-2 py-0.5 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40";
+
+/** Bandeau de sélection : propriétés de l'élément, puis actions sur son rung. */
+export function Inspector({
+  program,
+  selected,
+  onChange,
+  onReplaceSelection,
+  onDeleted,
+}: {
+  program: LadProgram;
+  selected: ElementRef;
+  /** Modification qui garde la sélection (même adresse). */
+  onChange: (program: LadProgram) => void;
+  /** Modification qui change la sélection (élément créé, ou null). */
+  onReplaceSelection: (program: LadProgram, focus: Expr | null) => void;
+  onDeleted: () => void;
+}) {
+  const rung = program.networks[selected.network]?.rungs[selected.rung];
+  if (!rung) return null;
+  return (
+    <div className="space-y-3">
+      <ElementInspector program={program} selected={selected} onChange={onChange} onDeleted={onDeleted} />
+      <div className="flex flex-wrap items-center gap-2 border-t border-slate-800 pt-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Rung</span>
+        {selected.kind === "expr" && (
+          <button
+            type="button"
+            className={actionButton}
+            title="Ajoute un contact en parallèle de l'élément sélectionné (Maj + clic pour englober plusieurs éléments)"
+            onClick={() => {
+              const contact = newElement({ kind: "contact", variant: "NO" });
+              onReplaceSelection(insertParallel(program, selected, contact), contact);
+            }}
+          >
+            ⊐ Branche parallèle
+          </button>
+        )}
+        <button
+          type="button"
+          className={`${actionButton} border-red-900 text-red-300 hover:bg-red-950`}
+          onClick={() => onReplaceSelection(removeRung(program, selected.network, selected.rung), null)}
+        >
+          Supprimer le rung
+        </button>
+        <input
+          key={`rung-comment-${rung.comment ?? ""}`}
+          defaultValue={rung.comment ?? ""}
+          placeholder="Commentaire du rung"
+          onBlur={(e) => {
+            if (e.target.value !== (rung.comment ?? "")) {
+              onChange(setRungComment(program, selected.network, selected.rung, e.target.value));
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+          }}
+          className="min-w-64 flex-1 rounded border border-slate-700 bg-slate-950 px-2 py-0.5 text-xs text-slate-300 italic focus:border-sky-600 focus:outline-none"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Bandeau quand plusieurs éléments en série sont sélectionnés (Maj + clic). */
+export function RangeInspector({
+  program,
+  range,
+  onChange,
+  onClear,
+}: {
+  program: LadProgram;
+  range: RangeRef;
+  onChange: (program: LadProgram, focus: Expr | null) => void;
+  onClear: () => void;
+}) {
+  const count = range.to - range.from + 1;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+          {count} élément{count > 1 ? "s" : ""} en série sélectionné{count > 1 ? "s" : ""}
+        </h4>
+        <p className="text-[11px] text-slate-500">
+          Une branche parallèle les englobera tous. Tu peux aussi glisser un symbole dans la zone sous la
+          sélection.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={actionButton}
+          onClick={() => {
+            const contact = newElement({ kind: "contact", variant: "NO" });
+            onChange(wrapParallel(program, range, contact), contact);
+          }}
+        >
+          ⊐ Branche parallèle autour
+        </button>
+        <button
+          type="button"
+          className={`${actionButton} border-red-900 text-red-300 hover:bg-red-950`}
+          onClick={() => onChange(removeRange(program, range), null)}
+        >
+          Supprimer la sélection
+        </button>
+        <button type="button" className={actionButton} onClick={onClear}>
+          Désélectionner
+        </button>
+      </div>
     </div>
   );
 }
