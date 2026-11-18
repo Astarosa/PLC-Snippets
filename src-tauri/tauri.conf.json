@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "PLC Snippets",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "fr.baptiste.plcsnippets",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -42,5 +42,16 @@
       }
     },
     "shortDescription": "Bibliothèque de snippets automate"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDA5OTFCMjcyNjQ3NDdFMjMKUldRamZuUmtjcktSQ2FJWnlockV3Q3RuYVpDK2VWeDF4allIVDBOeDlxTnFKMHpFcFN4c2llbTkK",
+      "endpoints": [
+        "https://github.com/Astarosa/PLC-Snippets/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

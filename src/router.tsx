@@ -10,6 +10,7 @@ import { Sidebar } from "./features/library/Sidebar";
 import { Welcome } from "./features/library/Welcome";
 import { SnippetPage } from "./features/snippet/SnippetPage";
 import { FileDropTarget, ImportDialog } from "./features/transfer/ImportDialog";
+import { UpdateNotice } from "./features/update/UpdateNotice";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -20,6 +21,7 @@ const rootRoute = createRootRoute({
       </main>
       <FileDropTarget />
       <ImportDialog />
+      <UpdateNotice />
     </div>
   ),
 });

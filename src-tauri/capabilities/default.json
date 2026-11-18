@@ -11,6 +11,8 @@
     "store:default",
     "clipboard-manager:allow-write-text",
     "dialog:allow-ask",
-    "dialog:allow-save"
+    "dialog:allow-save",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

@@ -1,12 +1,15 @@
 name: Build Windows
 
-# - push sur main / PR : tests + build, l'installeur est disponible dans les « Artifacts » du run
-# - tag v* (ex. v0.1.0) : idem + création d'une Release GitHub en brouillon avec le .exe et le .msi
+# - push sur main / PR : tests + build, l'installeur est disponible dans les « Artifacts » du run.
+# - publication d'une Release sur GitHub (créée à la main, avec son tag vX.Y.Z) : mêmes étapes, puis
+#   l'installeur signé pour la mise à jour automatique et latest.json sont ajoutés à CETTE release.
+#   Aucune release n'est créée par la CI : plus de doublons en brouillon.
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
+  release:
+    types: [published]
   workflow_dispatch:
 
 concurrency:
@@ -20,6 +23,17 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
+
+      - name: Version de l'app = tag de la release
+        if: github.event_name == 'release'
+        shell: bash
+        run: |
+          app="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          tag="${{ github.event.release.tag_name }}"
+          if [ "$app" != "$tag" ]; then
+            echo "::error::Le tag $tag ne correspond pas à la version de l'app ($app). Mets à jour la version avant de publier."
+            exit 1
+          fi
 
       - uses: actions/setup-node@v5
         with:
@@ -44,16 +58,28 @@ jobs:
       - name: Tests Rust
         run: npm run test:rust
 
-      - name: Build (+ Release brouillon si tag)
+      - name: Activer les artefacts de mise à jour signés (release uniquement)
+        if: github.event_name == 'release'
+        shell: bash
+        run: |
+          node -e "const f='src-tauri/tauri.conf.json';const fs=require('fs');const c=JSON.parse(fs.readFileSync(f));c.bundle.createUpdaterArtifacts=true;fs.writeFileSync(f,JSON.stringify(c,null,2))"
+
+      - name: Build
+        if: github.event_name != 'release'
+        uses: tauri-apps/tauri-action@v1
+
+      - name: Build signé + ajout à la release (installeur, latest.json)
+        if: github.event_name == 'release'
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
-          releaseName: "PLC Snippets ${{ github.ref_name }}"
-          releaseBody: "Installeur Windows (.exe, sans droits admin) et paquet .msi en pièces jointes."
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ github.event.release.id }}
+          tagName: ${{ github.event.release.tag_name }}
+          releaseBody: ${{ github.event.release.body }}
+          updaterJsonPreferNsis: true
 
       - name: Publier l'installeur dans les artifacts du run
         uses: actions/upload-artifact@v6

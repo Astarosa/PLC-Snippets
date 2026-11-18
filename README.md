@@ -39,13 +39,30 @@ Le workflow `.github/workflows/build.yml` tourne sur un runner Windows :
 - **à chaque push sur `main` ou PR** : lint, tests TS et Rust, build. L'installeur se
   télécharge dans l'onglet *Actions* → le run → *Artifacts* → `plc-snippets-windows`
   (contient le setup .exe, le .msi et l'exe portable) ;
-- **sur un tag `v*`** : même chose, plus une **Release GitHub en brouillon** avec les installeurs.
+- **à la publication d'une Release** sur GitHub : même chose, puis l'installeur signé et
+  `latest.json` sont **ajoutés à cette release** (la CI ne crée jamais de release elle-même).
 
 Publier une version :
 
 1. Mettre le même numéro dans `package.json`, `src-tauri/tauri.conf.json` et `src-tauri/Cargo.toml`
-2. `git commit -am "chore: v0.2.0"`, puis `git tag v0.2.0 && git push && git push --tags`
-3. Sur GitHub, relire la Release brouillon et la publier
+   (+ les lock), commit et push sur `main`.
+2. Sur GitHub : *Releases → Draft a new release*, créer le tag `vX.Y.Z` (exactement la version de l'app),
+   écrire les nouveautés, *Publish*. La CI refuse la release si le tag ne correspond pas à la version.
+3. Une dizaine de minutes plus tard, l'installeur et `latest.json` apparaissent dans la release.
+
+### Mise à jour automatique
+
+À l'ouverture, l'app lit `latest.json` de la dernière release publique
+(`releases/latest/download/latest.json`). Si la version est plus récente, une notification propose
+**Mettre à jour** (téléchargement, installation, redémarrage) ou **Plus tard** (redemandé au prochain
+lancement). Les nouveautés affichées sont le texte de la release.
+
+Les mises à jour sont signées (clé Tauri, différente d'une signature de code Windows) :
+
+- clé publique : `plugins.updater.pubkey` dans `src-tauri/tauri.conf.json` ;
+- clé privée et mot de passe : secrets GitHub `TAURI_SIGNING_PRIVATE_KEY` et
+  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. **À sauvegarder** : sans elle, les apps installées ne
+  peuvent plus être mises à jour (il faudrait réinstaller à la main avec une nouvelle clé).
 
 ## Organisation du code
 
