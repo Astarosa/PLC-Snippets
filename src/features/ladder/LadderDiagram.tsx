@@ -56,7 +56,7 @@ function Label({ x, y, text }: { x: number; y: number; text: string }) {
   );
 }
 
-function ShapeView({ shape }: { shape: Shape }) {
+export function ShapeView({ shape }: { shape: Shape }) {
   switch (shape.kind) {
     case "wire":
       return <line x1={shape.x1} y1={shape.y1} x2={shape.x2} y2={shape.y2} stroke={WIRE} strokeWidth={1.5} />;

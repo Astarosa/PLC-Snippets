@@ -26,13 +26,22 @@ export const RAIL_X = 16;
 export const TITLE_H = 28;
 const RUNG_GAP = 16;
 
+/** Adresse de l'élément dessiné, pour la sélection et le dépôt dans l'éditeur visuel. */
+export interface ShapeRef {
+  rung: number;
+  /** Chemin dans la condition (contacts, boîtes…). */
+  path?: number[];
+  /** Index de la bobine. */
+  output?: number;
+}
+
 export type Shape =
   | { kind: "wire"; x1: number; y1: number; x2: number; y2: number }
   | { kind: "rail"; x: number; y1: number; y2: number }
-  | { kind: "contact"; x: number; y: number; variant: ContactKind; label: string }
-  | { kind: "coil"; x: number; y: number; variant: CoilKind; label: string }
-  | { kind: "edge"; x: number; y: number; variant: EdgeKind; label: string; memory: string }
-  | { kind: "compare"; x: number; y: number; op: CompareOp; left: string; right: string }
+  | { kind: "contact"; x: number; y: number; variant: ContactKind; label: string; ref?: ShapeRef }
+  | { kind: "coil"; x: number; y: number; variant: CoilKind; label: string; ref?: ShapeRef }
+  | { kind: "edge"; x: number; y: number; variant: EdgeKind; label: string; memory: string; ref?: ShapeRef }
+  | { kind: "compare"; x: number; y: number; op: CompareOp; left: string; right: string; ref?: ShapeRef }
   | {
       kind: "box";
       x: number;
@@ -43,13 +52,25 @@ export type Shape =
       mainIn: string;
       mainOut: string;
       params: { name: string; value: string; direction: "in" | "out" }[];
+      ref?: ShapeRef;
     }
   | { kind: "title"; x: number; y: number; text: string };
+
+export interface RungFrame {
+  index: number;
+  top: number;
+  height: number;
+  /** Ordonnée du fil principal du rung. */
+  wireY: number;
+}
 
 export interface Diagram {
   width: number;
   height: number;
   shapes: Shape[];
+  rungs: RungFrame[];
+  /** Abscisse de la colonne des bobines. */
+  coilX: number;
 }
 
 /* Géométrie d'une boîte, relative au fil qui la traverse. */
@@ -97,7 +118,33 @@ const px = (col: number) => RAIL_X + col * CELL_W;
 const wireY = (originY: number, row: number) => originY + row * ROW_H + WIRE_Y;
 
 /** Place une expression en (col, row) ; le fil d'entrée et de sortie est sur la ligne `row`. */
-function place(expr: Expr, col: number, row: number, originY: number, out: Shape[]) {
+function place(
+  expr: Expr,
+  col: number,
+  row: number,
+  originY: number,
+  out: Shape[],
+  path: number[] = [],
+  rung = 0,
+) {
+  const before = out.length;
+  placeShapes(expr, col, row, originY, out, path, rung);
+  // Les éléments simples (contacts, boîtes…) reçoivent leur adresse.
+  if (expr.type !== "series" && expr.type !== "parallel") {
+    const shape = out[before] as Shape & { ref?: ShapeRef };
+    shape.ref = { rung, path };
+  }
+}
+
+function placeShapes(
+  expr: Expr,
+  col: number,
+  row: number,
+  originY: number,
+  out: Shape[],
+  path: number[],
+  rung: number,
+) {
   switch (expr.type) {
     case "contact":
       out.push({
@@ -145,8 +192,8 @@ function place(expr: Expr, col: number, row: number, originY: number, out: Shape
     }
     case "series": {
       let c = col;
-      for (const item of expr.items) {
-        place(item, c, row, originY, out);
+      for (const [i, item] of expr.items.entries()) {
+        place(item, c, row, originY, out, [...path, i], rung);
         c += size(item).w;
       }
       return;
@@ -155,9 +202,9 @@ function place(expr: Expr, col: number, row: number, originY: number, out: Shape
       const { w } = size(expr);
       let r = row;
       let lastRow = row;
-      for (const branch of expr.branches) {
+      for (const [i, branch] of expr.branches.entries()) {
         const s = size(branch);
-        place(branch, col, r, originY, out);
+        place(branch, col, r, originY, out, [...path, i], rung);
         // Branche plus courte : on prolonge le fil jusqu'à la sortie du bloc parallèle.
         if (s.w < w)
           out.push({
@@ -182,9 +229,9 @@ function place(expr: Expr, col: number, row: number, originY: number, out: Shape
 /** Colonnes occupées par la condition la plus large d'un réseau (pour aligner les bobines). */
 const conditionWidth = (rung: Rung) => size(rung.condition).w;
 
-function placeRung(rung: Rung, originY: number, coilCol: number, out: Shape[]): number {
+function placeRung(rung: Rung, index: number, originY: number, coilCol: number, out: Shape[]): number {
   const cond = size(rung.condition);
-  place(rung.condition, 0, 0, originY, out);
+  place(rung.condition, 0, 0, originY, out, [], index);
 
   // Fil entre la fin de la condition et la colonne des bobines (s'il y en a).
   const y0 = wireY(originY, 0);
@@ -193,7 +240,14 @@ function placeRung(rung: Rung, originY: number, coilCol: number, out: Shape[]): 
 
   // Plusieurs bobines : branches parallèles à droite, comme dans TIA Portal.
   rung.outputs.forEach((o, i) => {
-    out.push({ kind: "coil", x: px(coilCol), y: wireY(originY, i), variant: o.kind, label: o.operand.text });
+    out.push({
+      kind: "coil",
+      x: px(coilCol),
+      y: wireY(originY, i),
+      variant: o.kind,
+      label: o.operand.text,
+      ref: { rung: index, output: i },
+    });
   });
   if (rung.outputs.length > 1) {
     out.push({
@@ -220,10 +274,13 @@ export function layoutNetwork(network: Network): Diagram {
   // Toutes les bobines d'un réseau sur la même colonne, au moins 1 cellule après la condition.
   const coilCol = Math.max(2, ...network.rungs.map(conditionWidth)) + 1;
   const hasCoils = network.rungs.some((r) => r.outputs.length > 0);
+  const rungs: RungFrame[] = [];
   network.rungs.forEach((rung, i) => {
     if (i > 0) y += RUNG_GAP;
-    y += placeRung(rung, y, coilCol, shapes);
+    const height = placeRung(rung, i, y, coilCol, shapes);
+    rungs.push({ index: i, top: y, height, wireY: wireY(y, 0) });
+    y += height;
   });
   const lastCol = hasCoils ? coilCol + 1 : coilCol - 1;
-  return { width: px(lastCol) + RAIL_X, height: y + 8, shapes };
+  return { width: px(lastCol) + RAIL_X, height: y + 8, shapes, rungs, coilX: px(coilCol) };
 }

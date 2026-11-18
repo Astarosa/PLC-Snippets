@@ -5,6 +5,7 @@ import { generateScl, isSclGenerated, type SnippetForm, suggestId } from "../../
 import { BLOCK_TYPES, CPU_FAMILIES } from "../../core/snippet/schema";
 import { convertStl, detectMnemonic } from "../../core/stl/mnemonics";
 import { LadderPreview } from "../ladder/LadderPreview";
+import { VisualEditor } from "../ladder/VisualEditor";
 import { MnemonicSwitch } from "../snippet/StlView";
 import { CodeEditor } from "./CodeEditor";
 import { InterfaceEditor } from "./InterfaceEditor";
@@ -36,6 +37,7 @@ export function SnippetEditor({
   const [form, setForm] = useState(initial);
   // En création, l'identifiant suit le titre tant qu'on ne l'a pas modifié à la main.
   const [idTouched, setIdTouched] = useState(mode === "edit");
+  const [ladMode, setLadMode] = useState<"visual" | "text">("visual");
   const sclGenerated = isSclGenerated(form);
   const generated = sclGenerated ? generateScl(form.lad.content) : null;
   const set = <K extends keyof SnippetForm>(key: K, value: SnippetForm[K]) =>
@@ -191,22 +193,57 @@ export function SnippetEditor({
 
       <VariantSection
         title="LADDER"
-        hint="& = série (ET), | = parallèle (OU), -> bobine. Voir docs/ladder-dsl.md"
+        hint={
+          ladMode === "visual"
+            ? "Glisse les symboles dans le réseau ; l'onglet Texte montre le même schéma en DSL."
+            : "& = série (ET), | = parallèle (OU), -> bobine. Voir docs/ladder-dsl.md"
+        }
         enabled={form.lad.enabled}
         onToggle={(enabled) => set("lad", { ...form.lad, enabled })}
       >
-        <div className="space-y-3">
-          <CodeEditor
-            language="lad"
-            value={form.lad.content}
-            onChange={(content) => set("lad", { ...form.lad, content })}
-            minHeight="90px"
-            placeholder={LAD_PLACEHOLDER}
-          />
-          <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900/60">
-            <LadderPreview source={form.lad.content} />
+        <div className="flex items-center gap-3">
+          <div className="inline-flex overflow-hidden rounded-md border border-slate-700 text-xs">
+            {(
+              [
+                ["visual", "Visuel"],
+                ["text", "Texte"],
+              ] as const
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setLadMode(mode)}
+                className={`px-3 py-1 ${ladMode === mode ? "bg-emerald-900 text-emerald-100" : "text-slate-400 hover:bg-slate-800"}`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
+          {ladMode === "visual" && form.lad.content.includes("//") && (
+            <span className="text-xs text-amber-400">
+              {"Les commentaires « // » du texte sont retirés quand tu modifies en visuel."}
+            </span>
+          )}
         </div>
+        {ladMode === "visual" ? (
+          <VisualEditor
+            source={form.lad.content}
+            onChange={(content) => set("lad", { ...form.lad, content })}
+          />
+        ) : (
+          <div className="space-y-3">
+            <CodeEditor
+              language="lad"
+              value={form.lad.content}
+              onChange={(content) => set("lad", { ...form.lad, content })}
+              minHeight="90px"
+              placeholder={LAD_PLACEHOLDER}
+            />
+            <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900/60">
+              <LadderPreview source={form.lad.content} />
+            </div>
+          </div>
+        )}
         <label className="flex items-center gap-2 text-sm text-slate-300">
           <input
             type="checkbox"

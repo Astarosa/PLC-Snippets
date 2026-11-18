@@ -328,4 +328,32 @@ export function parseLadder(source: string): LadParseResult {
   }
 }
 
+export type ValueParseResult = { ok: true; value: Value } | { ok: false; error: string };
+
+/**
+ * Lit un opérande ou une valeur saisi dans l'inspecteur de l'éditeur visuel.
+ * Un nom nu (Moteur) devient une variable API ("Moteur").
+ */
+export function parseValueText(input: string, allowLiteral: boolean): ValueParseResult {
+  const text = input.trim();
+  if (!text) return { ok: false, error: "Valeur vide" };
+  const bare = /^[A-Za-z_]\w*$/.test(text) && !/^(TRUE|FALSE)$/i.test(text);
+  const source = bare ? `"${text}"` : text;
+  let tokens: Token[];
+  try {
+    tokens = tokenize(source).filter((t) => t.kind !== "eof");
+  } catch {
+    return { ok: false, error: "Caractère invalide (guillemet non fermé ?)" };
+  }
+  const t = tokens[0];
+  if (tokens.length !== 1) return { ok: false, error: "Une seule variable ou valeur attendue" };
+  if (t.kind === "string") return { ok: true, value: { kind: "global", text: t.text } };
+  if (t.kind === "local") return { ok: true, value: { kind: "local", text: t.text } };
+  if (t.kind === "absolute") return { ok: true, value: { kind: "absolute", text: t.text.toUpperCase() } };
+  const literal = t.kind === "literal" || (t.kind === "word" && /^(TRUE|FALSE)$/i.test(t.text));
+  if (literal && allowLiteral) return { ok: true, value: { kind: "literal", text: t.text.toUpperCase() } };
+  if (literal) return { ok: false, error: "Une variable est attendue ici, pas une constante" };
+  return { ok: false, error: 'Attendu : "Mnémonique", #Locale, %I0.0 ou une constante' };
+}
+
 export const formatLadError = (e: LadError) => `ligne ${e.line}, colonne ${e.col} : ${e.message}`;

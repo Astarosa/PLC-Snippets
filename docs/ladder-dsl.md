@@ -1,5 +1,8 @@
 # Le DSL LADDER
 
+> Tu peux aussi construire le schéma à la souris dans l'onglet **Visuel** de l'éditeur :
+> il écrit ce même texte pour toi (voir le README).
+
 Le LADDER s'écrit en texte, l'app le dessine et peut en générer le SCL équivalent.
 Un **rung** (une ligne de schéma) = une condition faite de contacts, puis `->`, puis une ou plusieurs bobines.
 

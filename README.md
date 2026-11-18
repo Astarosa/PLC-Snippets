@@ -60,7 +60,9 @@ src/
 ├── core/ladder/         ← DSL LADDER, sans dépendance
 │   ├── parse.ts           lexer + parseur, erreurs ligne / colonne
 │   ├── scl.ts             génération du SCL équivalent
-│   └── layout.ts          mise en page du schéma (formes en pixels)
+│   ├── layout.ts          mise en page du schéma (formes en pixels, adresse de chaque élément)
+│   ├── print.ts           arbre → texte DSL (utilisé par l'éditeur visuel)
+│   └── edit.ts            opérations d'édition : insérer, brancher, remplacer, supprimer
 ├── storage/
 │   ├── repository.ts      contrat SnippetRepository
 │   ├── tauri-repository.ts  implémentation disque (commandes Rust)
@@ -69,7 +71,7 @@ src/
 ├── state/settings.ts    ← réglages persistés (dossier de bibliothèque)
 ├── features/
 │   ├── editor/            formulaire, CodeMirror (coloration SCL / LAD), éditeur d'interface
-│   ├── ladder/            dessin SVG du schéma, aperçu avec erreurs
+│   ├── ladder/            dessin SVG, éditeur visuel (palette, zones de dépôt, inspecteur)
 │   ├── library/           liste, recherche, écran d'accueil
 │   └── snippet/           page d'un snippet, tableau d'interface
 └── components/          ← CodeBlock, CopyButton, Badge
@@ -117,7 +119,8 @@ Le dossier peut vivre dans Nextcloud (synchronisation) et devenir un dépôt git
       fronts P / N, comparateurs, rendu et génération SCL
 - [x] **6. Export TIA** : bloc FB / FC complet avec interface, en `.scl` ou `.awl`
       (NETWORK exporté en FC) ; variante **LIST** avec conversion allemand ↔ anglais
-- [ ] **7. LADDER en drag & drop** : palette de symboles, édition directe dans le réseau
+- [x] **7. LADDER en drag & drop** : palette de symboles, dépôt en série / parallèle / bobine,
+      inspecteur d'opérandes et de paramètres, synchronisé avec le texte DSL
 - [ ] **8.** Rendu Markdown des notes, historique git
 
 L'icône est générée depuis `app-icon.png` : `npx tauri icon app-icon.png`.
@@ -148,3 +151,21 @@ rechercher / remplacer : `A` est l'instruction ET en anglais mais une sortie en 
 | `SI`, `SV`, `SE`, `SA` | `SP`, `SE`, `SD`, `SF` | | | |
 
 Mnémoniques, variables locales, mémentos (`M`), DB et constantes sont laissés tels quels.
+
+## Éditeur LADDER visuel
+
+Dans l'éditeur d'un snippet, section LADDER, onglet **Visuel** (l'onglet **Texte** reste disponible) :
+
+- **Glisser** un symbole de la palette vers une zone bleue, ou **cliquer** le symbole puis la zone.
+  - petites zones à gauche / à droite d'un élément : insertion **en série**
+  - zone sous un élément : nouvelle **branche parallèle**
+  - colonne des bobines : bobine supplémentaire sur le rung
+  - « nouveau rung », « nouveau réseau »
+- **Cliquer** un élément pour l'éditer dans le bandeau du haut (opérande, NO/NC, paramètres de boîte…).
+  Un nom saisi sans guillemets (`Moteur`) devient `"Moteur"`. **Suppr** efface l'élément sélectionné.
+- Les éléments ajoutés portent `"???"` : remplace-le par ta variable.
+
+Le texte DSL reste la référence : chaque modification visuelle le réécrit dans un format standard
+(les commentaires `//` du texte ne sont pas conservés). Limites actuelles : on ne déplace pas encore un
+élément existant à la souris, et une branche parallèle se crée sous un seul élément (pour englober
+plusieurs contacts en série, passe par l'onglet Texte : `( NO "A" & NO "B" | NO "C" )`).

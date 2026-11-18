@@ -85,3 +85,23 @@ describe("layoutNetwork", () => {
     expect(d.width).toBe(RAIL_X + 3 * CELL_W + RAIL_X);
   });
 });
+
+describe("adresses des éléments (éditeur visuel)", () => {
+  it("donne à chaque élément son chemin et à chaque bobine son index", () => {
+    const d = layout('NO "A" & ( NO "B" | NO "C" ) -> COIL "X", SET "Y"\nNO "D" -> COIL "Z"');
+    const refs = d.shapes
+      .filter((s) => "ref" in s && s.ref)
+      .map((s) => ["label" in s ? s.label : "", JSON.stringify((s as { ref: unknown }).ref)]);
+    expect(refs).toEqual([
+      ['"A"', '{"rung":0,"path":[0]}'],
+      ['"B"', '{"rung":0,"path":[1,0]}'],
+      ['"C"', '{"rung":0,"path":[1,1]}'],
+      ['"X"', '{"rung":0,"output":0}'],
+      ['"Y"', '{"rung":0,"output":1}'],
+      ['"D"', '{"rung":1,"path":[]}'],
+      ['"Z"', '{"rung":1,"output":0}'],
+    ]);
+    expect(d.rungs.map((r) => r.index)).toEqual([0, 1]);
+    expect(d.coilX).toBe(RAIL_X + 3 * CELL_W);
+  });
+});
