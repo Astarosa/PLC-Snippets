@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { type SnippetForm, suggestId } from "../../core/snippet/form";
+import { CodeBlock } from "../../components/CodeBlock";
+import { generateScl, isSclGenerated, type SnippetForm, suggestId } from "../../core/snippet/form";
 import { BLOCK_TYPES, CPU_FAMILIES } from "../../core/snippet/schema";
+import { LadderPreview } from "../ladder/LadderPreview";
 import { CodeEditor } from "./CodeEditor";
 import { InterfaceEditor } from "./InterfaceEditor";
 
@@ -31,6 +33,8 @@ export function SnippetEditor({
   const [form, setForm] = useState(initial);
   // En création, l'identifiant suit le titre tant qu'on ne l'a pas modifié à la main.
   const [idTouched, setIdTouched] = useState(mode === "edit");
+  const sclGenerated = isSclGenerated(form);
+  const generated = sclGenerated ? generateScl(form.lad.content) : null;
   const set = <K extends keyof SnippetForm>(key: K, value: SnippetForm[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
@@ -184,32 +188,60 @@ export function SnippetEditor({
 
       <VariantSection
         title="LADDER"
-        hint="Écrit dans le DSL texte : & = série, | = parallèle. Le rendu graphique viendra à l'étape 4."
+        hint="& = série (ET), | = parallèle (OU), -> bobine. Voir docs/ladder-dsl.md"
         enabled={form.lad.enabled}
         onToggle={(enabled) => set("lad", { ...form.lad, enabled })}
       >
-        <CodeEditor
-          language="lad"
-          value={form.lad.content}
-          onChange={(content) => set("lad", { ...form.lad, content })}
-          minHeight="100px"
-          placeholder={LAD_PLACEHOLDER}
-        />
+        <div className="space-y-3">
+          <CodeEditor
+            language="lad"
+            value={form.lad.content}
+            onChange={(content) => set("lad", { ...form.lad, content })}
+            minHeight="90px"
+            placeholder={LAD_PLACEHOLDER}
+          />
+          <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900/60">
+            <LadderPreview source={form.lad.content} />
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={form.scl.generated}
+            onChange={(e) => set("scl", { ...form.scl, enabled: true, generated: e.target.checked })}
+          />
+          Générer le SCL automatiquement depuis le LADDER
+        </label>
       </VariantSection>
 
       <VariantSection
         title="SCL"
-        hint="Le corps du bloc uniquement : l'interface se déclare plus bas."
-        enabled={form.scl.enabled}
+        hint={
+          sclGenerated
+            ? "Généré depuis le LADDER : décoche la génération pour l'écrire à la main."
+            : "Le corps du bloc uniquement : l'interface se déclare plus bas."
+        }
+        enabled={form.scl.enabled || sclGenerated}
+        locked={sclGenerated}
         onToggle={(enabled) => set("scl", { ...form.scl, enabled })}
       >
-        <CodeEditor
-          language="scl"
-          value={form.scl.content}
-          onChange={(content) => set("scl", { ...form.scl, content })}
-          minHeight="220px"
-          placeholder={SCL_PLACEHOLDER}
-        />
+        {generated ? (
+          generated.ok ? (
+            <CodeBlock code={generated.scl} title={`${form.scl.file} (généré)`} language="scl" />
+          ) : (
+            <p className="rounded-lg border border-amber-900 bg-amber-950/40 p-3 font-mono text-sm text-amber-300">
+              {generated.error}
+            </p>
+          )
+        ) : (
+          <CodeEditor
+            language="scl"
+            value={form.scl.content}
+            onChange={(content) => set("scl", { ...form.scl, content })}
+            minHeight="220px"
+            placeholder={SCL_PLACEHOLDER}
+          />
+        )}
       </VariantSection>
 
       <section>
@@ -241,19 +273,26 @@ function VariantSection({
   title,
   hint,
   enabled,
+  locked = false,
   onToggle,
   children,
 }: {
   title: string;
   hint: string;
   enabled: boolean;
+  locked?: boolean;
   onToggle: (enabled: boolean) => void;
   children: ReactNode;
 }) {
   return (
     <section className="space-y-2">
       <label className="flex items-center gap-2">
-        <input type="checkbox" checked={enabled} onChange={(e) => onToggle(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={enabled}
+          disabled={locked}
+          onChange={(e) => onToggle(e.target.checked)}
+        />
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">{title}</span>
         <span className="text-xs text-slate-500">{hint}</span>
       </label>

@@ -81,6 +81,39 @@ describe("formToRaw", () => {
   });
 });
 
+describe("LADDER dans le formulaire", () => {
+  it("génère le SCL depuis le LADDER quand c'est demandé", () => {
+    const form = filledForm();
+    form.lad = { enabled: true, file: "main.lad", content: 'NO "A" & NC "B" -> COIL "X"' };
+    form.scl = { enabled: false, file: "main.scl", content: "", generated: true };
+    const result = formToRaw(form, NOW);
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+    expect(result.raw.files.find((f) => f.name === "main.scl")?.content).toBe('"X" := "A" AND NOT "B";\n');
+    expect(JSON.parse(result.raw.meta).variants[1]).toEqual({
+      lang: "SCL",
+      file: "main.scl",
+      generated: true,
+    });
+  });
+
+  it("refuse d'enregistrer un LADDER invalide, avec la position de l'erreur", () => {
+    const form = filledForm();
+    form.lad = { enabled: true, file: "main.lad", content: 'NO "A" COIL "X"' };
+    const result = formToRaw(form, NOW);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors[0]).toMatch(/^LADDER, ligne 1, colonne 8/);
+  });
+
+  it("garde le SCL manuel si le LADDER est désactivé", () => {
+    const form = filledForm();
+    form.scl.generated = true;
+    const result = formToRaw(form, NOW);
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+    expect(JSON.parse(result.raw.meta).variants[0].generated).toBe(false);
+    expect(result.raw.files[0].content).toBe('"Defaut" := "T_Capteur".Q;\n');
+  });
+});
+
 describe("formFromSnippet", () => {
   it("fait l'aller-retour sans perte sur les exemples", () => {
     for (const raw of sampleSnippets(NOW)) {

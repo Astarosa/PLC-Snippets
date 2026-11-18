@@ -5,6 +5,7 @@ import { Badge } from "../../components/Badge";
 import { CodeBlock } from "../../components/CodeBlock";
 import type { Lang } from "../../core/snippet/schema";
 import { useDeleteSnippet, useSnippet } from "../../storage/queries";
+import { LadderPreview } from "../ladder/LadderPreview";
 import { InterfaceTable } from "./InterfaceTable";
 
 export function SnippetPage() {
@@ -95,16 +96,16 @@ export function SnippetPage() {
             </button>
           ))}
         </div>
+        {variant.lang === "LAD" && (
+          <div className="rounded-lg border border-slate-700 bg-slate-900/60">
+            <LadderPreview source={variant.content} />
+          </div>
+        )}
         <CodeBlock
           code={variant.content}
           title={variant.file}
           language={variant.lang === "LAD" ? "lad" : "scl"}
         />
-        {variant.lang === "LAD" && (
-          <p className="text-xs text-slate-500">
-            Source DSL du LADDER. Le rendu graphique arrive à l'étape 4 de la feuille de route.
-          </p>
-        )}
       </section>
 
       <InterfaceTable iface={meta.interface} />

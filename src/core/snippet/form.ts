@@ -1,3 +1,5 @@
+import { formatLadError, parseLadder } from "../ladder/parse";
+import { ladderToScl } from "../ladder/scl";
 import { type RawSnippet, slugify, toRawSnippet } from "./parse";
 import {
   type BlockType,
@@ -106,9 +108,32 @@ export const suggestId = (title: string) => slugify(title);
 
 export type FormResult = { ok: true; raw: RawSnippet } | { ok: false; errors: string[] };
 
+export type GeneratedScl = { ok: true; scl: string } | { ok: false; error: string };
+
+/** SCL calculé depuis le LADDER (utilisé pour l'aperçu et à l'enregistrement). */
+export function generateScl(ladSource: string): GeneratedScl {
+  const parsed = parseLadder(ladSource);
+  if (!parsed.ok) return { ok: false, error: `LADDER, ${formatLadError(parsed.error)}` };
+  return { ok: true, scl: ladderToScl(parsed.program) };
+}
+
+/** Le SCL n'est généré que si le LADDER est actif ; sinon on garde le SCL écrit à la main. */
+export const isSclGenerated = (form: SnippetForm) => form.lad.enabled && form.scl.generated;
+
 /** Valide le formulaire et produit ce qui sera écrit sur le disque. */
-export function formToRaw(form: SnippetForm, now = new Date().toISOString()): FormResult {
+export function formToRaw(input: SnippetForm, now = new Date().toISOString()): FormResult {
   const errors: string[] = [];
+  let form = input;
+
+  // Un LADDER invalide n'est jamais enregistré : le schéma ne pourrait pas être dessiné.
+  if (form.lad.enabled && form.lad.content.trim()) {
+    const parsed = parseLadder(form.lad.content);
+    if (!parsed.ok) errors.push(`LADDER, ${formatLadError(parsed.error)}`);
+    else if (isSclGenerated(form)) {
+      form = { ...form, scl: { ...form.scl, enabled: true, content: ladderToScl(parsed.program) } };
+    }
+  }
+  if (!form.lad.enabled && form.scl.generated) form = { ...form, scl: { ...form.scl, generated: false } };
   if (!form.title.trim()) errors.push("Le titre est obligatoire.");
   if (!ID_PATTERN.test(form.id)) {
     errors.push("Identifiant invalide : minuscules, chiffres, « - » et « _ » uniquement (ex. tempo-defaut).");

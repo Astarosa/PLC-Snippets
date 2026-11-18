@@ -54,6 +54,10 @@ src/
 │   ├── schema.ts          format de snippet.json (Zod)
 │   ├── parse.ts           validation, slug, recherche
 │   └── form.ts            formulaire ↔ snippet, règles de validation
+├── core/ladder/         ← DSL LADDER, sans dépendance
+│   ├── parse.ts           lexer + parseur, erreurs ligne / colonne
+│   ├── scl.ts             génération du SCL équivalent
+│   └── layout.ts          mise en page du schéma (formes en pixels)
 ├── storage/
 │   ├── repository.ts      contrat SnippetRepository
 │   ├── tauri-repository.ts  implémentation disque (commandes Rust)
@@ -62,6 +66,7 @@ src/
 ├── state/settings.ts    ← réglages persistés (dossier de bibliothèque)
 ├── features/
 │   ├── editor/            formulaire, CodeMirror (coloration SCL / LAD), éditeur d'interface
+│   ├── ladder/            dessin SVG du schéma, aperçu avec erreurs
 │   ├── library/           liste, recherche, écran d'accueil
 │   └── snippet/           page d'un snippet, tableau d'interface
 └── components/          ← CodeBlock, CopyButton, Badge
@@ -102,7 +107,8 @@ Le dossier peut vivre dans Nextcloud (synchronisation) et devenir un dépôt git
       éditeur d'interface, validation avant écriture
 - [ ] **2b.** Rendu Markdown des notes, index SQLite FTS5
 - [ ] **3. Historique** : commit git automatique (isomorphic-git), vue diff
-- [ ] **4. DSL LADDER** : parseur, rendu SVG, génération SCL de la logique combinatoire
+- [x] **4. DSL LADDER** : parseur, rendu SVG, génération SCL de la logique combinatoire
+      (syntaxe : [docs/ladder-dsl.md](docs/ladder-dsl.md))
 - [ ] **5. Boîtes** (TON, CTU, MOVE…), export `.scl` complet, version portable
 
 L'icône est générée depuis `app-icon.png` : `npx tauri icon app-icon.png`.

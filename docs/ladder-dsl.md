@@ -1,0 +1,58 @@
+# Le DSL LADDER
+
+Le LADDER s'écrit en texte, l'app le dessine et peut en générer le SCL équivalent.
+Un **rung** (une ligne de schéma) = une condition faite de contacts, puis `->`, puis une ou plusieurs bobines.
+
+```
+network "Marche / arrêt avec auto-maintien"
+  ( NO "BP_Marche" | NO "KM1" ) & NO "BP_Arret" & NC "Defaut" -> COIL "KM1"
+```
+
+## Éléments
+
+| Écriture | Symbole | Rôle | SCL généré |
+|---|---|---|---|
+| `NO "A"` | `─┤ ├─` | contact normalement ouvert | `"A"` |
+| `NC "A"` | `─┤/├─` | contact normalement fermé | `NOT "A"` |
+| `COIL "X"` | `─( )` | bobine | `"X" := …;` |
+| `NCOIL "X"` | `─(/)` | bobine inversée | `"X" := NOT (…);` |
+| `SET "X"` | `─(S)` | mise à 1 | `IF … THEN "X" := TRUE; END_IF;` |
+| `RESET "X"` | `─(R)` | mise à 0 | `IF … THEN "X" := FALSE; END_IF;` |
+
+## Assemblage
+
+| Écriture | Signification |
+|---|---|
+| `a & b` | en **série** (ET) |
+| `a \| b` | en **parallèle** (OU) |
+| `( … )` | groupe, comme en maths : `&` est prioritaire sur `\|` |
+| `-> COIL "X", SET "Y"` | plusieurs bobines en parallèle sur le même rung |
+
+`NO "A" & NO "B" | NO "C"` se lit `(A ET B) OU C`. Pour `A ET (B OU C)`, il faut les parenthèses :
+`NO "A" & ( NO "B" | NO "C" )`.
+
+## Opérandes
+
+- Variable API (mnémonique) : `"BP_Marche"`, membre de DB : `"DB_Ligne".Marche` ou `"DB"."Mot clé"`
+- Variable locale du bloc : `#Capteur`, membre d'instance : `#Tempo.Q`
+- Adresse absolue : `%I0.0`, `%Q4.1`, `%M10.0`
+
+## Réseaux, lignes, commentaires
+
+- `network "Titre"` commence un nouveau réseau (le titre est optionnel). Le mot-clé peut être omis pour le premier.
+- Un réseau peut contenir plusieurs rungs, l'un sous l'autre.
+- Les retours à la ligne sont libres ; `//` commente jusqu'à la fin de la ligne.
+- Les mots-clés ne sont pas sensibles à la casse (`no`, `NO`, `No`).
+
+## Génération du SCL
+
+Avec « Générer le SCL automatiquement », le SCL est recalculé à chaque enregistrement et marqué *(généré)*.
+
+- Un rung à une seule bobine devient une affectation : `"KM1" := ("BP_Marche" OR "KM1") AND "BP_Arret";`
+- Avec plusieurs bobines ou des SET/RESET, la condition passe dans un `IF … ELSE … END_IF` :
+  elle n'est évaluée qu'une fois, comme en LADDER, même si une bobine modifie un contact du rung.
+
+## Pas encore géré
+
+Fronts (`P`, `N`), temporisations et compteurs (`TON`, `CTU`…), `MOVE` et comparateurs :
+c'est l'étape 5. En attendant, l'éditeur affiche un message clair si tu les utilises.
