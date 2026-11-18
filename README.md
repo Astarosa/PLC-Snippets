@@ -6,7 +6,7 @@ Application de bureau Windows (Tauri 2 + React 19).
 
 ## Prérequis (Windows)
 
-1. **Node.js 22+** : <https://nodejs.org>
+1. **Node.js 24** (LTS) : <https://nodejs.org>. La version est fixée dans `.nvmrc`
 2. **Rust** via rustup : <https://rustup.rs> (puis `rustup update`, il faut Rust 1.88 minimum)
 3. **Microsoft C++ Build Tools** : dans Visual Studio Installer, cocher
    « Développement Desktop en C++ » (MSVC + SDK Windows)
