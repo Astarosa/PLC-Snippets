@@ -175,7 +175,8 @@ Un NETWORK devient une FC sans interface (ses variables globales doivent exister
   via Openness), puis le synchroniser vers le projet.
   Le bloc reçoit le numéro 1 : à renuméroter si besoin. Les adresses absolues (`%I0.0`) sont refusées :
   utiliser des mnémoniques.
-- Les tests reposent pour l'instant sur des fichiers **synthétiques** (`fixtures/simaticml/synthetic-v17/`).
+- L'export vise **TIA V20** (format relevé sur un vrai export V20, `fixtures/simaticml/real-v20/`).
+  Le reste des tests repose sur des fichiers synthétiques (`fixtures/simaticml/synthetic-v17/`).
   Tant qu'un fichier généré n'a pas été réimporté avec succès dans TIA, l'export reste marqué expérimental.
 
 ### Compatibilité entre versions de l'application

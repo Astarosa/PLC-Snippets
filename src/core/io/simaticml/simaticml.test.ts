@@ -69,6 +69,52 @@ describe("import SimaticML", () => {
   });
 });
 
+describe("vrai export TIA V20", () => {
+  const realDir = fileURLToPath(new URL("../../../../fixtures/simaticml/real-v20/", import.meta.url));
+  const real = readFileSync(`${realDir}Block_2.xml`, "utf8");
+
+  it("s'importe : OU de deux contacts globaux vers une bobine, réseau vide ignoré", () => {
+    const item = readSimaticMl(real, "Block_2.xml");
+    expect(item.errors).toEqual([]);
+    expect(item.snippet?.meta).toMatchObject({ title: "Block_2", blockType: "FC" });
+    const l = item.snippet?.variants.find((v) => v.lang === "LAD")?.content;
+    expect(l).toContain('NO "BPM" | NO "KM1" -> COIL "KM1"');
+    expect(item.warnings.join(" ")).toMatch(/V20/);
+    expect(item.warnings.join(" ")).toMatch(/Réseau 2 vide/);
+  });
+
+  it("l'export V20 reprend les en-têtes du vrai fichier", () => {
+    const snippet = readSimaticMl(real, "Block_2.xml").snippet;
+    if (!snippet) throw new Error("import");
+    const { xml } = writeSimaticMl(snippet, "Block_2");
+    for (const marker of [
+      '<Engineering version="V20" />',
+      "Openness/SW/Interface/v5",
+      "Openness/SW/NetworkSource/FlgNet/v5",
+      "<Namespace />",
+      "<Culture>en-US</Culture>",
+      '<Part Name="O" ',
+    ]) {
+      expect(xml).toContain(marker);
+      expect(real).toContain(marker);
+    }
+    // TIA liste les Access avant les Part.
+    expect(xml.indexOf("<Access")).toBeLessThan(xml.indexOf("<Part "));
+    const back = readSimaticMl(xml, "Block_2.xml").snippet;
+    expect(back?.variants.find((v) => v.lang === "LAD")?.content).toBe(
+      snippet.variants.find((v) => v.lang === "LAD")?.content,
+    );
+  });
+
+  it("l'export V17 garde FlgNet v4", () => {
+    const snippet = readSimaticMl(real, "Block_2.xml").snippet;
+    if (!snippet) throw new Error("import");
+    const { xml } = writeSimaticMl(snippet, "Block_2", { version: "V17" });
+    expect(xml).toContain("FlgNet/v4");
+    expect(xml).not.toContain("<Namespace />");
+  });
+});
+
 describe("export SimaticML", () => {
   const files = [
     "01_contacts.xml",

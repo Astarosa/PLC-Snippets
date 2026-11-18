@@ -4,14 +4,22 @@ import { parseLadder } from "../../ladder/parse";
 import type { Snippet, SnippetInterface, Variable } from "../../snippet/schema";
 
 /*
- * Écriture d'un bloc LAD au format SimaticML (TIA Portal V17 : Interface v5, FlgNet v4).
- * EXPÉRIMENTAL : construit d'après la structure des exports Openness, pas encore validé par
- * un import réel dans TIA. Les UId sont uniques dans tout le bloc (plus sûr à l'import).
+ * Écriture d'un bloc LAD au format SimaticML.
+ * Cible par défaut : TIA Portal V20 (Interface v5, FlgNet v5, d'après un vrai export V20).
+ * V17 (FlgNet v4) reste possible mais n'est calé que sur des fichiers synthétiques.
+ * EXPÉRIMENTAL : structure calée sur un vrai export V20, mais pas encore réimportée dans TIA.
  */
 
 const NS_INTERFACE = "http://www.siemens.com/automation/Openness/SW/Interface/v5";
-const NS_FLGNET = "http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4";
-const CULTURE = "fr-FR";
+const NS_FLGNET = (v: 4 | 5) => `http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v${v}`;
+/** Langue des textes : celle par défaut d'un projet TIA (vue dans l'export V20). */
+const CULTURE = "en-US";
+
+export type TiaVersion = "V17" | "V20";
+export const TIA_VERSIONS: Record<TiaVersion, { flgNet: 4 | 5; namespaceTag: boolean }> = {
+  V17: { flgNet: 4, namespaceTag: false },
+  V20: { flgNet: 5, namespaceTag: true },
+};
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -109,6 +117,8 @@ function components(text: string): string[] {
 type TypeOf = (v: Value) => string | null;
 
 class NetworkWriter {
+  /** TIA liste les Access avant les Part : on fait pareil. */
+  private accesses: string[] = [];
   private parts: string[] = [];
   private wires: string[] = [];
   /** Destinations par source (une source = un Wire). */
@@ -118,6 +128,7 @@ class NetworkWriter {
   constructor(
     private uid: () => number,
     private typeOf: TypeOf,
+    private flgNet: 4 | 5,
   ) {}
 
   private access(value: Value): number {
@@ -125,12 +136,12 @@ class NetworkWriter {
     if (value.kind === "literal") {
       const v = value.text;
       if (/^[A-Z_]+#/.test(v) && !/^16#|^2#|^8#/.test(v)) {
-        this.parts.push(
+        this.accesses.push(
           `    <Access Scope="TypedConstant" UId="${id}">\n      <Constant>\n        <ConstantValue>${esc(v)}</ConstantValue>\n      </Constant>\n    </Access>`,
         );
       } else {
         const type = /^(TRUE|FALSE)$/.test(v) ? "Bool" : /[.E]/.test(v) && !/#/.test(v) ? "Real" : "Int";
-        this.parts.push(
+        this.accesses.push(
           `    <Access Scope="LiteralConstant" UId="${id}">\n      <Constant>\n        <ConstantType>${type}</ConstantType>\n        <ConstantValue>${esc(v)}</ConstantValue>\n      </Constant>\n    </Access>`,
         );
       }
@@ -144,7 +155,7 @@ class NetworkWriter {
     const comps = components(value.text)
       .map((c) => `<Component Name="${esc(c)}" />`)
       .join("");
-    this.parts.push(
+    this.accesses.push(
       `    <Access Scope="${value.kind === "local" ? "LocalVariable" : "GlobalVariable"}" UId="${id}">\n      <Symbol>${comps}</Symbol>\n    </Access>`,
     );
     return id;
@@ -312,9 +323,10 @@ class NetworkWriter {
       ({ source, targets }) =>
         `    <Wire UId="${this.uid()}">\n      ${source}\n${targets.map((t) => `      ${t}`).join("\n")}\n    </Wire>`,
     );
-    return [
-      `<NetworkSource><FlgNet xmlns="${NS_FLGNET}">`,
+    const xml = [
+      `<NetworkSource><FlgNet xmlns="${NS_FLGNET(this.flgNet)}">`,
       "  <Parts>",
+      ...this.accesses,
       ...this.parts,
       "  </Parts>",
       "  <Wires>",
@@ -323,7 +335,21 @@ class NetworkWriter {
       "  </Wires>",
       "</FlgNet></NetworkSource>",
     ].join("\n");
+    return renumber(xml);
   }
+}
+
+/**
+ * Renumérote les UId comme TIA : à partir de 21 dans chaque réseau, dans l'ordre de déclaration
+ * (Access, Part et leur Instance, puis Wire).
+ */
+function renumber(xml: string): string {
+  const map = new Map<string, number>();
+  let next = 21;
+  for (const m of xml.matchAll(/<(?:Access|Part|Instance|Wire)\b[^>]*\bUId="(\d+)"/g)) {
+    if (!map.has(m[1])) map.set(m[1], next++);
+  }
+  return xml.replace(/\bUId="(\d+)"/g, (all, id: string) => (map.has(id) ? `UId="${map.get(id)}"` : all));
 }
 
 /* ---------- Bloc complet ---------- */
@@ -334,7 +360,12 @@ export interface SimaticMlExport {
   warnings: string[];
 }
 
-export function writeSimaticMl(snippet: Snippet, blockName: string, blockNumber = 1): SimaticMlExport {
+export function writeSimaticMl(
+  snippet: Snippet,
+  blockName: string,
+  { version = "V20", blockNumber = 1 }: { version?: TiaVersion; blockNumber?: number } = {},
+): SimaticMlExport {
+  const target = TIA_VERSIONS[version];
   const lad = snippet.variants.find((v) => v.lang === "LAD");
   if (!lad) throw new SimaticMlExportError("pas de LADDER");
   const parsed = parseLadder(lad.content);
@@ -360,14 +391,14 @@ export function writeSimaticMl(snippet: Snippet, blockName: string, blockNumber 
   let nextUid = 20;
   const uid = () => ++nextUid;
   const warnings: string[] = [
-    "Export SimaticML expérimental : vérifie l'import dans TIA avant de t'en servir",
+    `Export SimaticML ${version} expérimental : vérifie l'import dans TIA avant de t'en servir`,
   ];
   if (blockNumber === 1) warnings.push("Numéro de bloc 1 : à changer dans TIA si besoin");
 
   ids.object(); // ID 0 : le bloc
   const blockComment = multilingualXml(ids, "Comment", snippet.meta.summary, "      ");
   const units = parsed.program.networks.map((network) => {
-    const writer = new NetworkWriter(uid, typeOf);
+    const writer = new NetworkWriter(uid, typeOf, target.flgNet);
     const graph = networkToGraph(network);
     for (const node of graph.nodes) writer.node(node);
     warnings.push(...writer.warnings);
@@ -393,12 +424,13 @@ export function writeSimaticMl(snippet: Snippet, blockName: string, blockNumber 
   const xml = [
     '<?xml version="1.0" encoding="utf-8"?>',
     "<Document>",
-    '  <Engineering version="V17" />',
+    `  <Engineering version="${version}" />`,
     `  <${tag} ID="0">`,
     "    <AttributeList>",
     interfaceXml(isFb ? iface : { ...iface, static: [] }, isFb),
     "      <MemoryLayout>Optimized</MemoryLayout>",
     `      <Name>${esc(blockName)}</Name>`,
+    ...(target.namespaceTag ? ["      <Namespace />"] : []),
     `      <Number>${blockNumber}</Number>`,
     "      <ProgrammingLanguage>LAD</ProgrammingLanguage>",
     "      <SetENOAutomatically>false</SetENOAutomatically>",
