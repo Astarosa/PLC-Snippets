@@ -202,12 +202,12 @@ pub fn delete(library: &str, id: &str) -> Result<(), String> {
 }
 
 /// Écrit une source exportée à l'emplacement choisi par l'utilisateur (boîte « Enregistrer sous »).
-/// Seules les extensions de sources TIA sont acceptées.
+/// Seules les extensions de fichiers TIA sont acceptées (.scl, .awl, .xml SimaticML).
 pub fn export_source(path: &str, content: &str) -> Result<(), String> {
     let path = Path::new(path);
     let ext = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
-    if !matches!(ext.as_deref(), Some("scl" | "awl")) {
-        return Err("L'export doit être un fichier .scl ou .awl".into());
+    if !matches!(ext.as_deref(), Some("scl" | "awl" | "xml")) {
+        return Err("L'export doit être un fichier .scl, .awl ou .xml".into());
     }
     fs::write(path, content).map_err(|e| format!("Écriture de {}: {e}", path.display()))
 }

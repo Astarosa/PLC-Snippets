@@ -126,7 +126,8 @@ Le dossier peut vivre dans Nextcloud (synchronisation) et devenir un dépôt git
       inspecteur d'opérandes et de paramètres, synchronisé avec le texte DSL
 - [x] **8. Import / export et partage** : zip PLC Snippets (complet), sources TIA .scl / .awl
       (import et export), formats versionnés avec migrations
-- [ ] **9.** SimaticML et PLCopen XML (LADDER depuis TIA / Machine Expert), rendu Markdown des notes
+- [~] **9.** SimaticML (fait, expérimental, à valider dans TIA), PLCopen XML (Machine Expert / CODESYS),
+      rendu Markdown des notes
 
 L'icône est générée depuis `app-icon.png` : `npx tauri icon app-icon.png`.
 
@@ -141,6 +142,7 @@ sur la fenêtre. Formats reconnus :
 |---|---|
 | zip ou dossier PLC Snippets | un snippet, plusieurs, ou une bibliothèque entière (format **complet**) |
 | source externe TIA `.scl` / `.awl` | chaque FB / FC devient un snippet (interface + corps ; **passerelle avec perte**) |
+| SimaticML TIA `.xml` (bloc LAD) | un bloc par fichier : LADDER, SCL généré, interface, titres et commentaires ; **expérimental** |
 
 Un aperçu montre ce qui a été reconnu, ce qui sera perdu, et propose pour chaque doublon :
 *Garder les deux* (dossier renommé `-2`), *Remplacer le mien* ou *Ignorer*.
@@ -155,12 +157,26 @@ Les zips sont contrôlés côté Rust (chemins hors archive refusés, taille pla
 | Partager | PLC Snippets (.zip) | tout : variantes, notes, commentaires, tags |
 | TIA Portal | Source externe SCL (.scl) | SCL seul (généré depuis le LADDER si besoin) |
 | TIA Portal | Source externe LIST (.awl) | LIST seul, dans la mnémonique choisie |
-| TIA Portal / Schneider | SimaticML, PLCopen XML | bientôt |
+| TIA Portal | SimaticML (.xml) — **expérimental** | LADDER : bloc LAD avec réseaux, titres, commentaires, interface |
+| Schneider / CODESYS | PLCopen XML | bientôt |
 
 Pour partager avec un ami : **toujours le zip** (le seul format complet).
 
 Dans TIA : *Sources externes* → *Ajouter un nouveau fichier externe* → clic droit → *Générer les blocs*.
 Un NETWORK devient une FC sans interface (ses variables globales doivent exister dans l'API).
+
+### SimaticML (LADDER ↔ TIA) — expérimental
+
+- **Depuis TIA** : obtenir le `.xml` d'un bloc LAD (en V17 : *Version Control Interface* — espace de travail
+  qui écrit chaque bloc en SimaticML — ou un outil Openness), puis l'importer ici. Sont repris : contacts NO / NC, fronts P / N, bobines, S / R, OU,
+  TON / TOF / TP / TONR, CTU / CTD / CTUD, MOVE, ADD / SUB / MUL / DIV, comparateurs.
+  Un réseau contenant autre chose est ignoré avec un avertissement (le reste du bloc est importé).
+- **Vers TIA** : *Exporter ▾ → SimaticML (.xml)*, déposer le fichier dans l'espace de travail VCI (ou l'importer
+  via Openness), puis le synchroniser vers le projet.
+  Le bloc reçoit le numéro 1 : à renuméroter si besoin. Les adresses absolues (`%I0.0`) sont refusées :
+  utiliser des mnémoniques.
+- Les tests reposent pour l'instant sur des fichiers **synthétiques** (`fixtures/simaticml/synthetic-v17/`).
+  Tant qu'un fichier généré n'a pas été réimporté avec succès dans TIA, l'export reste marqué expérimental.
 
 ### Compatibilité entre versions de l'application
 

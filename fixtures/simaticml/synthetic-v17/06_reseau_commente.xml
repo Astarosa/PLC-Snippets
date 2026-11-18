@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V17" />
+  <SW.Blocks.FB ID="0">
+    <AttributeList>
+        <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="Niveau" Datatype="Int">
+      <Comment>
+        <MultiLanguageText Lang="fr-FR">Niveau cuve (0..1000)</MultiLanguageText>
+      </Comment>
+      <StartValue>0</StartValue>
+    </Member>
+  </Section>
+  <Section Name="Output">
+    <Member Name="Alarme" Datatype="Bool">
+      <Comment>
+        <MultiLanguageText Lang="fr-FR">Alarme niveau haut</MultiLanguageText>
+      </Comment>
+      <StartValue>false</StartValue>
+    </Member>
+  </Section>
+  <Section Name="InOut" />
+  <Section Name="Static">
+    <Member Name="Actif" Datatype="Bool" Remanence="NonRetain" Accessibility="Public">
+      <Comment>
+        <MultiLanguageText Lang="fr-FR">Surveillance active</MultiLanguageText>
+      </Comment>
+      <StartValue>true</StartValue>
+    </Member>
+    <Member Name="Nb_Alarmes" Datatype="Int" Remanence="NonRetain" Accessibility="Public">
+      <Comment>
+        <MultiLanguageText Lang="fr-FR">Compteur d'alarmes</MultiLanguageText>
+      </Comment>
+      <StartValue>0</StartValue>
+    </Member>
+  </Section>
+  <Section Name="Temp">
+    <Member Name="Tmp" Datatype="Bool">
+      <Comment>
+        <MultiLanguageText Lang="fr-FR">Variable temporaire</MultiLanguageText>
+      </Comment>
+    </Member>
+  </Section>
+  <Section Name="Constant">
+    <Member Name="SEUIL_HAUT" Datatype="Int">
+      <Comment>
+        <MultiLanguageText Lang="fr-FR">Seuil de déclenchement</MultiLanguageText>
+      </Comment>
+      <StartValue>800</StartValue>
+    </Member>
+  </Section>
+</Sections></Interface>
+        <IsIECCheckEnabled>false</IsIECCheckEnabled>
+        <MemoryLayout>Optimized</MemoryLayout>
+        <MemoryReserve>100</MemoryReserve>
+        <Name>FB_T06_Commente</Name>
+        <Number>106</Number>
+        <ProgrammingLanguage>LAD</ProgrammingLanguage>
+        <SetENOAutomatically>false</SetENOAutomatically>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>fr-FR</Culture>
+              <Text>Bloc de test : commentaires, valeurs initiales, constante.</Text>
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><FlgNet xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4">
+  <Parts>
+    <Access Scope="LocalVariable" UId="21">
+      <Symbol><Component Name="Niveau" /></Symbol>
+    </Access>
+    <Access Scope="LocalConstant" UId="22">
+      <Constant Name="SEUIL_HAUT" />
+    </Access>
+    <Access Scope="LocalVariable" UId="23">
+      <Symbol><Component Name="Actif" /></Symbol>
+    </Access>
+    <Access Scope="LocalVariable" UId="24">
+      <Symbol><Component Name="Alarme" /></Symbol>
+    </Access>
+    <Part Name="Ge" UId="25">
+      <TemplateValue Name="SrcType" Type="Type">Int</TemplateValue>
+    </Part>
+    <Part Name="Contact" UId="26" />
+    <Part Name="Coil" UId="27" />
+  </Parts>
+  <Wires>
+    <Wire UId="28">
+      <Powerrail />
+      <NameCon UId="26" Name="in" />
+    </Wire>
+    <Wire UId="29">
+      <IdentCon UId="23" />
+      <NameCon UId="26" Name="operand" />
+    </Wire>
+    <Wire UId="30">
+      <NameCon UId="26" Name="out" />
+      <NameCon UId="25" Name="pre" />
+    </Wire>
+    <Wire UId="31">
+      <IdentCon UId="21" />
+      <NameCon UId="25" Name="in1" />
+    </Wire>
+    <Wire UId="32">
+      <IdentCon UId="22" />
+      <NameCon UId="25" Name="in2" />
+    </Wire>
+    <Wire UId="33">
+      <NameCon UId="25" Name="out" />
+      <NameCon UId="27" Name="in" />
+    </Wire>
+    <Wire UId="34">
+      <IdentCon UId="24" />
+      <NameCon UId="27" Name="operand" />
+    </Wire>
+  </Wires>
+</FlgNet></NetworkSource>
+          <ProgrammingLanguage>LAD</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>fr-FR</Culture>
+                  <Text>Déclenche l'alarme quand le niveau atteint le seuil.
+Seuil défini par la constante SEUIL_HAUT.</Text>
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>fr-FR</Culture>
+                  <Text>Alarme niveau haut</Text>
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>fr-FR</Culture>
+              <Text>Surveillance niveau</Text>
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FB>
+</Document>

@@ -1,4 +1,5 @@
 import { plcSnippetsAdapter } from "./plcsnippets";
+import { simaticMlAdapter } from "./simaticml/adapter";
 import { tiaAwlAdapter, tiaSclAdapter } from "./tia-source";
 import type { FormatAdapter, ImportPreview, ImportSource } from "./types";
 
@@ -10,14 +11,7 @@ export const ADAPTERS: FormatAdapter[] = [
   plcSnippetsAdapter,
   tiaSclAdapter,
   tiaAwlAdapter,
-  {
-    id: "simaticml",
-    label: "SimaticML (.xml)",
-    family: "TIA Portal",
-    lossless: false,
-    keeps: "LADDER inclus",
-    planned: true,
-  },
+  simaticMlAdapter,
   {
     id: "plcopen",
     label: "PLCopen XML (.xml)",
@@ -41,7 +35,7 @@ export function previewImport(source: ImportSource): ImportPreview {
       items: [],
       warnings: [
         ...warnings,
-        "Aucun format reconnu : il faut un snippet PLC Snippets (dossier ou zip avec snippet.json) ou une source externe TIA (.scl / .awl).",
+        "Aucun format reconnu : il faut un snippet PLC Snippets (dossier ou zip avec snippet.json), une source externe TIA (.scl / .awl) ou un export SimaticML (.xml).",
       ],
     };
   }

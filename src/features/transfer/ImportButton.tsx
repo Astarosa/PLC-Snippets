@@ -25,7 +25,7 @@ export function ImportButton({ disabled }: { disabled: boolean }) {
         : {
             title: "Importer des snippets",
             filters: [
-              { name: "Snippets et sources TIA", extensions: ["zip", "scl", "awl", "json"] },
+              { name: "Snippets et fichiers TIA", extensions: ["zip", "scl", "awl", "xml", "json"] },
               { name: "Tous les fichiers", extensions: ["*"] },
             ],
           },
