@@ -1,0 +1,130 @@
+name: Publier une version
+
+# Onglet Actions → « Publier une version » → Run workflow, puis saisir la version (ex. 0.3.1).
+#  1. vérifie que le tag n'existe pas et que CHANGELOG.md a une section « ## vX.Y.Z » ;
+#  2. lint + tests ;
+#  3. met la version partout (scripts/set-version.mjs), commit et push sur main ;
+#  4. compile, signe, crée la release EN BROUILLON avec l'installeur et latest.json ;
+#  5. publie la release (elle devient alors immuable).
+# En cas d'échec, rien n'est publié : un éventuel brouillon peut être supprimé à la main.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version à publier, sans « v » (ex. 0.3.1)"
+        required: true
+      title:
+        description: "Titre de la release (facultatif, sinon « PLC Snippets vX.Y.Z »)"
+        required: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Vérifications (format, tag libre, nouveautés)
+        id: check
+        shell: bash
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version invalide : « $VERSION » (attendu X.Y.Z, sans « v »)"; exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::Le tag v$VERSION existe déjà : choisis une autre version."; exit 1
+          fi
+          node scripts/release-notes.mjs "$VERSION" > "$RUNNER_TEMP/notes.md"
+          {
+            echo "notes<<__NOTES__"
+            cat "$RUNNER_TEMP/notes.md"
+            echo "__NOTES__"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Dépendances
+        run: npm ci
+
+      - name: Lint + types
+        run: npm run lint
+
+      - name: Tests TypeScript
+        run: npm test
+
+      - name: Tests Rust
+        run: npm run test:rust
+
+      - name: Version partout, commit et push sur main
+        id: bump
+        shell: bash
+        run: |
+          current=$(node -p "require('./package.json').version")
+          if [ "$current" != "$VERSION" ]; then
+            node scripts/set-version.mjs "$VERSION"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "chore: version $VERSION"
+            git push origin HEAD:main
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Activer les artefacts de mise à jour signés
+        shell: bash
+        run: |
+          node -e "const f='src-tauri/tauri.conf.json';const fs=require('fs');const c=JSON.parse(fs.readFileSync(f));c.bundle.createUpdaterArtifacts=true;fs.writeFileSync(f,JSON.stringify(c,null,2))"
+
+      - name: Build signé + release en brouillon (installeur, latest.json)
+        id: tauri
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: v${{ inputs.version }}
+          releaseName: ${{ inputs.title || format('PLC Snippets v{0}', inputs.version) }}
+          releaseBody: ${{ steps.check.outputs.notes }}
+          releaseDraft: true
+          prerelease: false
+          releaseCommitish: ${{ steps.bump.outputs.sha }}
+          updaterJsonPreferNsis: true
+
+      - name: Vérifier les fichiers de la release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ steps.tauri.outputs.releaseId }}
+        run: |
+          assets=$(gh api "repos/${{ github.repository }}/releases/$RELEASE_ID" -q '.assets[].name')
+          echo "$assets"
+          for pattern in 'latest\.json' '-setup\.exe$' '-setup\.exe\.sig$'; do
+            if ! grep -qE -- "$pattern" <<< "$assets"; then
+              echo "::error::Fichier manquant dans la release : $pattern (release laissée en brouillon)"; exit 1
+            fi
+          done
+
+      - name: Publier la release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ steps.tauri.outputs.releaseId }}
+        run: gh api -X PATCH "repos/${{ github.repository }}/releases/$RELEASE_ID" -F draft=false -q '.html_url'

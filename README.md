@@ -39,16 +39,20 @@ Le workflow `.github/workflows/build.yml` tourne sur un runner Windows :
 - **à chaque push sur `main` ou PR** : lint, tests TS et Rust, build. L'installeur se
   télécharge dans l'onglet *Actions* → le run → *Artifacts* → `plc-snippets-windows`
   (contient le setup .exe, le .msi et l'exe portable) ;
-- **à la publication d'une Release** sur GitHub : même chose, puis l'installeur signé et
-  `latest.json` sont **ajoutés à cette release** (la CI ne crée jamais de release elle-même).
+- **workflow « Publier une version »** (onglet *Actions* → *Run workflow*) : publie une release
+  complète, sans passer par le formulaire de release ni créer de tag à la main.
 
 Publier une version :
 
-1. Mettre le même numéro dans `package.json`, `src-tauri/tauri.conf.json` et `src-tauri/Cargo.toml`
-   (+ les lock), commit et push sur `main`.
-2. Sur GitHub : *Releases → Draft a new release*, créer le tag `vX.Y.Z` (exactement la version de l'app),
-   écrire les nouveautés, *Publish*. La CI refuse la release si le tag ne correspond pas à la version.
-3. Une dizaine de minutes plus tard, l'installeur et `latest.json` apparaissent dans la release.
+1. Ajouter la section `## vX.Y.Z` dans [CHANGELOG.md](CHANGELOG.md) (les nouveautés, plusieurs lignes
+   possibles) et la pousser sur `main`.
+2. *Actions → Publier une version → Run workflow*, saisir `X.Y.Z` (et un titre si on veut).
+3. La CI vérifie que le tag est libre et que les nouveautés existent, lance les tests, met la version
+   partout (`scripts/set-version.mjs`, commit sur `main`), compile et signe, crée la release en
+   brouillon avec l'installeur et `latest.json`, vérifie les fichiers, puis la **publie**.
+
+Les releases du dépôt sont **immuables** une fois publiées (réglage GitHub) : c'est pour ça que tout est
+ajouté pendant le brouillon. Un tag déjà utilisé ne peut pas resservir, même si la release est supprimée.
 
 ### Mise à jour automatique
 
