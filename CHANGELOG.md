@@ -8,6 +8,9 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 - Export SimaticML (LADDER) validé dans TIA V20 : il n'est plus marqué expérimental.
 - Numéro de version et de build affichés à côté du nom de l'application.
 - Les messages d'export reviennent à la ligne par mots entiers au lieu de couper un mot en deux.
+- Accents corrects dans TIA : les sources .scl / .awl exportées sont enregistrées en UTF-8 avec BOM
+  (TIA affichait « RÃ©seau » au lieu de « Réseau »). Une source TIA en encodage Windows est
+  maintenant lue à l'import au lieu d'être ignorée.
 
 ## v0.3.3
 

@@ -68,7 +68,9 @@ pub fn is_valid_code_file(name: &str) -> bool {
 fn library_dir(library: &str) -> Result<PathBuf, String> {
     let dir = PathBuf::from(library);
     if !dir.is_dir() {
-        return Err(format!("Le dossier de bibliothèque est introuvable : {library}"));
+        return Err(format!(
+            "Le dossier de bibliothèque est introuvable : {library}"
+        ));
     }
     Ok(dir)
 }
@@ -150,7 +152,10 @@ pub fn write(library: &str, snippet: &RawSnippet) -> Result<(), String> {
     let dir = snippet_dir(library, &snippet.id)?;
     for file in &snippet.files {
         if !is_valid_code_file(&file.name) {
-            return Err(format!("Nom de fichier de code invalide : « {} »", file.name));
+            return Err(format!(
+                "Nom de fichier de code invalide : « {} »",
+                file.name
+            ));
         }
     }
 
@@ -187,7 +192,10 @@ pub fn write(library: &str, snippet: &RawSnippet) -> Result<(), String> {
 pub fn create(library: &str, snippet: &RawSnippet) -> Result<(), String> {
     let dir = snippet_dir(library, &snippet.id)?;
     if dir.exists() {
-        return Err(format!("Un snippet « {} » existe déjà dans la bibliothèque", snippet.id));
+        return Err(format!(
+            "Un snippet « {} » existe déjà dans la bibliothèque",
+            snippet.id
+        ));
     }
     write(library, snippet)
 }
@@ -196,7 +204,9 @@ pub fn create(library: &str, snippet: &RawSnippet) -> Result<(), String> {
 pub fn delete(library: &str, id: &str) -> Result<(), String> {
     let dir = snippet_dir(library, id)?;
     if !dir.join(META_FILE).is_file() {
-        return Err(format!("« {id} » n'est pas un snippet de cette bibliothèque"));
+        return Err(format!(
+            "« {id} » n'est pas un snippet de cette bibliothèque"
+        ));
     }
     fs::remove_dir_all(&dir).map_err(|e| format!("Suppression de {id}: {e}"))
 }
@@ -205,11 +215,25 @@ pub fn delete(library: &str, id: &str) -> Result<(), String> {
 /// Seules les extensions de fichiers TIA sont acceptées (.scl, .awl, .xml SimaticML).
 pub fn export_source(path: &str, content: &str) -> Result<(), String> {
     let path = Path::new(path);
-    let ext = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase);
     if !matches!(ext.as_deref(), Some("scl" | "awl" | "xml")) {
         return Err("L'export doit être un fichier .scl, .awl ou .xml".into());
     }
-    fs::write(path, content).map_err(|e| format!("Écriture de {}: {e}", path.display()))
+    // Les sources .scl / .awl ont besoin du BOM UTF-8 : sans lui, TIA les lit en Windows-1252
+    // et les accents deviennent « Ã© ». Le .xml déclare son encodage dans l'en-tête.
+    let bytes = if ext.as_deref() == Some("xml") {
+        content.as_bytes().to_vec()
+    } else {
+        [
+            &b"\xEF\xBB\xBF"[..],
+            content.trim_start_matches('\u{feff}').as_bytes(),
+        ]
+        .concat()
+    };
+    fs::write(path, bytes).map_err(|e| format!("Écriture de {}: {e}", path.display()))
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -232,16 +256,34 @@ pub fn read_order(library: &str) -> Result<Vec<String>, String> {
 pub fn write_order(library: &str, order: &[String]) -> Result<(), String> {
     let path = library_dir(library)?.join(LIBRARY_FILE);
     let order: Vec<String> = order.iter().filter(|id| is_valid_id(id)).cloned().collect();
-    let json = serde_json::to_string_pretty(&LibrarySettings { order }).map_err(|e| e.to_string())?;
+    let json =
+        serde_json::to_string_pretty(&LibrarySettings { order }).map_err(|e| e.to_string())?;
     write_atomic(&path, &format!("{json}\n"))
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn export_source_ajoute_le_bom_utf8_aux_sources() {
+        let dir = std::env::temp_dir().join(format!("plc-bom-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let scl = dir.join("FC_Test.scl");
+        super::export_source(scl.to_str().unwrap(), "// Réseau").unwrap();
+        assert_eq!(
+            std::fs::read(&scl).unwrap(),
+            b"\xEF\xBB\xBF// R\xC3\xA9seau"
+        );
+        let xml = dir.join("FC_Test.xml");
+        super::export_source(xml.to_str().unwrap(), "<?xml?>").unwrap();
+        assert_eq!(std::fs::read(&xml).unwrap(), b"<?xml?>");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     use super::*;
 
     fn temp_library(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("plc-snippets-test-{name}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("plc-snippets-test-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -253,8 +295,14 @@ mod tests {
             meta: r#"{"title":"Test"}"#.into(),
             readme: Some("# Test".into()),
             files: vec![
-                SnippetFile { name: "main.lad".into(), content: "network".into() },
-                SnippetFile { name: "main.scl".into(), content: "#a := TRUE;".into() },
+                SnippetFile {
+                    name: "main.lad".into(),
+                    content: "network".into(),
+                },
+                SnippetFile {
+                    name: "main.scl".into(),
+                    content: "#a := TRUE;".into(),
+                },
             ],
         }
     }
@@ -290,7 +338,10 @@ mod tests {
         fs::create_dir_all(lib.join("pas-un-snippet")).unwrap();
 
         let all = list(lib_str).unwrap();
-        assert_eq!(all.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), ["a-snippet", "b-snippet"]);
+        assert_eq!(
+            all.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(),
+            ["a-snippet", "b-snippet"]
+        );
         assert_eq!(all[0], sample("a-snippet"));
         fs::remove_dir_all(lib).unwrap();
     }
@@ -340,7 +391,7 @@ mod tests {
         let lib = temp_library("export");
         let ok = lib.join("FB_Test.SCL");
         export_source(ok.to_str().unwrap(), "FUNCTION_BLOCK").unwrap();
-        assert_eq!(fs::read_to_string(&ok).unwrap(), "FUNCTION_BLOCK");
+        assert_eq!(fs::read_to_string(&ok).unwrap(), "\u{feff}FUNCTION_BLOCK");
         assert!(export_source(lib.join("x.exe").to_str().unwrap(), "x").is_err());
         assert!(export_source(lib.join("sans-extension").to_str().unwrap(), "x").is_err());
         fs::remove_dir_all(lib).unwrap();
@@ -352,7 +403,10 @@ mod tests {
         let lib_str = lib.to_str().unwrap();
         assert_eq!(read_order(lib_str).unwrap(), Vec::<String>::new());
         write_order(lib_str, &["b".into(), "../evil".into(), "a".into()]).unwrap();
-        assert_eq!(read_order(lib_str).unwrap(), vec!["b".to_string(), "a".to_string()]);
+        assert_eq!(
+            read_order(lib_str).unwrap(),
+            vec!["b".to_string(), "a".to_string()]
+        );
         // library.json n'est pas un snippet
         assert!(list(lib_str).unwrap().is_empty());
         fs::remove_dir_all(lib).unwrap();
