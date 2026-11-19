@@ -1,6 +1,6 @@
 [package]
 name = "plc-snippets"
-version = "0.3.3"
+version = "0.3.4"
 description = "Bibliothèque de snippets automate (LADDER / SCL)"
 authors = ["Baptiste"]
 edition = "2024"
