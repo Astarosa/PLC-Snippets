@@ -99,3 +99,28 @@ describe("buildSource", () => {
     );
   });
 });
+
+describe("noms globaux à créer dans TIA", () => {
+  it("relève les variables et DB entre guillemets, hors commentaires et chaînes", async () => {
+    const { globalNames } = await import("./globals");
+    const body = `U "BP_Marche" // "PasCelleLa"
+(* "NiCelleLa" *)
+L 'texte "x"'
+L "DB_Recette".consigne
+= "KM1"
+U "BP_Marche"`;
+    expect(globalNames(body)).toEqual(["BP_Marche", "DB_Recette", "KM1"]);
+    expect(globalNames(body, ["KM1"])).toEqual(["BP_Marche", "DB_Recette"]);
+  });
+});
+
+describe("terminaison des lignes LIST", () => {
+  it("ajoute « ; » après « U( » mais pas après un CALL multi-lignes", () => {
+    const snippet = stlSnippet('U(\nO "A"\nO "B"\n)\n= "C"\nCALL "FB_X" , "DB_X" (\n  IN := "A"\n)');
+    const r = buildSource(snippet, { format: "STL", blockName: "FC_Test" });
+    if (!r.ok) throw new Error(r.error);
+    expect(r.source).toMatch(/^\s*U\(;$/m);
+    expect(r.source).toMatch(/^\s*\);$/m);
+    expect(r.source).toMatch(/CALL "FB_X" , "DB_X" \($/m);
+  });
+});

@@ -111,7 +111,7 @@ describe("sources externes TIA", () => {
     const stl = item.snippet?.variants[0];
     expect(stl).toMatchObject({ lang: "STL", mnemonic: "EN" });
     expect(stl?.content).toBe(
-      'A(    \nO     "BP_Marche";\nO     "KM1";\n);     \nA     "BP_Arret";   // câblé NF\nAN    "Defaut";\n=     "KM1";\n',
+      'A(;    \nO     "BP_Marche";\nO     "KM1";\n);     \nA     "BP_Arret";   // câblé NF\nAN    "Defaut";\n=     "KM1";\n',
     );
     expect(item.snippet?.meta.blockType).toBe("FC");
   });
@@ -164,9 +164,24 @@ END_FUNCTION_BLOCK
     const result = adapter?.export?.(samples);
     if (result?.kind !== "text") throw new Error();
     expect(result.content.match(/^FUNCTION/gm)).toHaveLength(1);
-    expect(result.warnings).toHaveLength(2);
+    expect(result.warnings.filter((w) => w.includes("pas de variante LIST"))).toHaveLength(2);
+    expect(result.warnings.some((w) => w.includes("Mnémonique"))).toBe(true);
+    expect(result.warnings.find((w) => w.startsWith("À créer dans TIA"))).toContain('"BP_Marche"');
     expect(tiaSclAdapter.canExport?.(byId("machine-etat-convoyeur"))).toBeNull();
     expect(tiaAwlAdapter.canExport?.(byId("machine-etat-convoyeur"))).toBe("pas de LIST");
+  });
+});
+
+describe("export LIST avec la mnémonique du projet TIA", () => {
+  it("convertit en mnémonique internationale si demandé", () => {
+    const one = [byId("marche-arret-auto-maintien")];
+    const de = tiaAwlAdapter.export?.(one, { stlMnemonic: "DE" });
+    const en = tiaAwlAdapter.export?.(one, { stlMnemonic: "EN" });
+    if (de?.kind !== "text" || en?.kind !== "text") throw new Error();
+    expect(de.content).toMatch(/^\s*UN\s+"Defaut"/m);
+    expect(en.content).toMatch(/^\s*AN\s+"Defaut"/m);
+    expect(en.content).not.toMatch(/^\s*UN\s/m);
+    expect(en.warnings.join(" ")).toContain("internationale");
   });
 });
 

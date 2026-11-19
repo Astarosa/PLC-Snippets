@@ -7,6 +7,14 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 
 - Test de la mise à jour automatique.
 
+## v0.3.3
+
+- Export LIST (.awl) vers TIA corrigé : les parenthèses « U( » / « A( » sont maintenant terminées
+  par « ; » comme TIA l'exige (la génération du bloc échouait).
+- Choix de la mnémonique (allemande ou internationale) dans « Exporter ▾ » et dans le panneau
+  d'export, mémorisé d'une fois sur l'autre. Elle doit correspondre au réglage de TIA.
+- L'export liste les variables API / DB à créer dans TIA avant d'importer le bloc.
+
 ## v0.3.2
 
 - Première version installable de la mise à jour automatique. À installer à la main une fois : les versions suivantes seront proposées directement dans l'application.

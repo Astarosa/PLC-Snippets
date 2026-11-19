@@ -3,7 +3,7 @@ import { emptyInterface } from "../snippet/form";
 import { parseRawSnippet, slugify, toRawSnippet } from "../snippet/parse";
 import type { BlockType, Snippet, SnippetInterface, Variable } from "../snippet/schema";
 import { detectMnemonic } from "../stl/mnemonics";
-import type { FormatAdapter, ImportItem, ImportSource } from "./types";
+import type { ExportPreferences, FormatAdapter, ImportItem, ImportSource } from "./types";
 
 /*
  * Sources externes TIA Portal (.scl / .awl) : passerelle AVEC PERTE.
@@ -232,17 +232,37 @@ function importTia(source: ImportSource, lang: "SCL" | "STL"): ImportItem[] {
 const hasBlock = (content: string) =>
   /^\s*(FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK|DATA_BLOCK|TYPE)\s/m.test(content);
 
+/** Avertissement : noms globaux à créer dans TIA (PLC tags, DB…) avant de générer les blocs. */
+export const globalsWarning = (names: string[]) =>
+  `À créer dans TIA avant l'import (PLC tags, DB, blocs) : ${names.map((n) => `"${n}"`).join(", ")}`;
+
 function tiaExport(lang: "SCL" | "STL") {
   const format = lang === "SCL" ? ("SCL" as const) : ("STL" as const);
   const ext = lang === "SCL" ? "scl" : "awl";
-  return (snippets: Snippet[]) => {
+  return (snippets: Snippet[], options: ExportPreferences = {}) => {
     const warnings: string[] = [];
     const sources: string[] = [];
+    const globals = new Set<string>();
     for (const snippet of snippets) {
-      const result = buildSource(snippet, { format, blockName: defaultBlockName(snippet) });
-      if (result.ok) sources.push(result.source);
-      else warnings.push(`${snippet.meta.title} : ${result.error}`);
+      const result = buildSource(snippet, {
+        format,
+        blockName: defaultBlockName(snippet),
+        mnemonic: options.stlMnemonic,
+      });
+      if (result.ok) {
+        sources.push(result.source);
+        for (const g of result.globals) globals.add(g);
+      } else warnings.push(`${snippet.meta.title} : ${result.error}`);
     }
+    if (lang === "STL") {
+      const m = options.stlMnemonic;
+      warnings.push(
+        m
+          ? `Mnémonique ${m === "DE" ? "allemande" : "internationale"} : elle doit correspondre au réglage de TIA (Options → Settings → General → Mnemonic)`
+          : "Mnémonique d'origine de chaque snippet : vérifie qu'elle correspond au réglage de TIA",
+      );
+    }
+    if (globals.size > 0) warnings.push(globalsWarning([...globals]));
     const fileName =
       snippets.length === 1
         ? `${defaultBlockName(snippets[0])}.${ext}`

@@ -5,6 +5,7 @@ import { CodeBlock } from "../../components/CodeBlock";
 import { availableFormats, buildSource, defaultBlockName, type ExportFormat } from "../../core/export/source";
 import type { Snippet } from "../../core/snippet/schema";
 import type { Mnemonic } from "../../core/stl/mnemonics";
+import { useSettings } from "../../state/settings";
 import { MnemonicSwitch } from "./StlView";
 
 const FORMAT_LABELS: Record<ExportFormat, string> = { SCL: "SCL (.scl)", STL: "LIST (.awl)" };
@@ -24,8 +25,15 @@ export function ExportPanel({
     initialFormat && formats.includes(initialFormat) ? initialFormat : (formats[0] ?? "SCL"),
   );
   const [blockName, setBlockName] = useState(defaultBlockName(snippet));
+  // Mnémonique du projet TIA : le dernier choix est mémorisé (sinon celle du snippet).
+  const savedMnemonic = useSettings((s) => s.stlMnemonic);
+  const setSavedMnemonic = useSettings((s) => s.setStlMnemonic);
   const stlMnemonic = snippet.variants.find((v) => v.lang === "STL")?.mnemonic ?? "DE";
-  const [mnemonic, setMnemonic] = useState<Mnemonic>(stlMnemonic);
+  const [mnemonic, setLocalMnemonic] = useState<Mnemonic>(savedMnemonic ?? stlMnemonic);
+  const setMnemonic = (m: Mnemonic) => {
+    setLocalMnemonic(m);
+    void setSavedMnemonic(m);
+  };
   const [status, setStatus] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
   const result = useMemo(
@@ -120,8 +128,15 @@ export function ExportPanel({
               : ""}
             Dans TIA Portal : Sources externes → Ajouter un fichier → clic droit → Générer les blocs.
             {format === "STL" &&
-              " La mnémonique doit correspondre au réglage du projet (Options → Paramètres)."}
+              " La mnémonique doit correspondre au réglage de TIA (Options → Settings → General → Mnemonic)."}
           </p>
+
+          {result.ok && result.globals.length > 0 && (
+            <p className="rounded-md border border-amber-900 bg-amber-950/30 px-3 py-2 text-xs text-amber-300">
+              À créer dans TIA avant l'import (PLC tags, DB, blocs appelés) :{" "}
+              <span className="font-mono">{result.globals.map((g) => `"${g}"`).join(", ")}</span>
+            </p>
+          )}
 
           {status && (
             <p className={`text-sm ${status.kind === "ok" ? "text-emerald-400" : "text-red-400"}`}>

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { exportAdapter } from "../core/io/registry";
-import type { ImportSource, SourceFile } from "../core/io/types";
+import type { ExportPreferences, ImportSource, SourceFile } from "../core/io/types";
 import type { Snippet } from "../core/snippet/schema";
 
 /** Lit un zip, un dossier ou un fichier (commande Rust read_import_source). */
@@ -17,7 +17,11 @@ export interface ExportOutcome {
 }
 
 /** Exporte des snippets avec un adaptateur : choix de l'emplacement, puis écriture. */
-export async function runExport(adapterId: string, snippets: Snippet[]): Promise<ExportOutcome> {
+export async function runExport(
+  adapterId: string,
+  snippets: Snippet[],
+  preferences: ExportPreferences = {},
+): Promise<ExportOutcome> {
   const adapter = exportAdapter(adapterId);
   if (!adapter?.export) throw new Error(`Format d'export inconnu : ${adapterId}`);
   const exportable = snippets.filter((s) => adapter.canExport?.(s) == null);
@@ -26,7 +30,7 @@ export async function runExport(adapterId: string, snippets: Snippet[]): Promise
     .map((s) => `${s.meta.title} : ${adapter.canExport?.(s)}`);
   if (exportable.length === 0) return { path: null, warnings: refused };
 
-  const result = adapter.export(exportable);
+  const result = adapter.export(exportable, preferences);
   const extension = result.kind === "zip" ? "zip" : result.extension;
   const path = await save({
     title: `Exporter — ${adapter.label}`,

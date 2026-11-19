@@ -1,5 +1,6 @@
 import type { RawSnippet } from "../snippet/parse";
 import type { Snippet } from "../snippet/schema";
+import type { Mnemonic } from "../stl/mnemonics";
 
 /** Fichier texte lu ou écrit (chemin relatif, séparateur « / »). */
 export interface SourceFile {
@@ -54,7 +55,13 @@ export interface FormatAdapter {
   import?(source: ImportSource): ImportItem[];
   /** Le format accepte-t-il ce snippet ? (sinon raison) */
   canExport?(snippet: Snippet): string | null;
-  export?(snippets: Snippet[]): ExportResult;
+  export?(snippets: Snippet[], options?: ExportPreferences): ExportResult;
+}
+
+/** Réglages de l'utilisateur pris en compte à l'export (mémorisés dans l'app). */
+export interface ExportPreferences {
+  /** Sources LIST (.awl) : mnémonique du projet TIA cible. */
+  stlMnemonic?: Mnemonic;
 }
 
 export type { RawSnippet };

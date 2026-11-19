@@ -1,6 +1,7 @@
 import { generateScl } from "../snippet/form";
 import type { Snippet, SnippetInterface, Variable } from "../snippet/schema";
 import { convertStl, type Mnemonic } from "../stl/mnemonics";
+import { globalNames } from "./globals";
 
 /*
  * Génération d'une « source externe » TIA Portal : un bloc complet (FB ou FC)
@@ -20,7 +21,15 @@ export interface ExportOptions {
   mnemonic?: Mnemonic;
 }
 
-export type ExportResult = { ok: true; source: string; fileName: string } | { ok: false; error: string };
+export type ExportResult =
+  | {
+      ok: true;
+      source: string;
+      fileName: string;
+      /** Variables / DB / blocs globaux à créer dans le projet TIA avant l'import. */
+      globals: string[];
+    }
+  | { ok: false; error: string };
 
 const toPascal = (id: string) =>
   id
@@ -80,7 +89,16 @@ function terminateStl(source: string): string {
     .split("\n")
     .map((line) => {
       const code = line.replace(/\/\/.*$/, "").trimEnd();
-      if (!code.trim() || /[;,(]$/.test(code) || /:=/.test(code) || /^\s*[A-Za-z_]\w{0,3}:$/.test(code)) {
+      // Pas de « ; » : ligne vide, déjà terminée, paramètre (« , » / « := »), étiquette,
+      // ou CALL dont les paramètres suivent (« CALL "FB" , "DB" ( »). « A( » et « U( » en prennent un.
+      const openCall = /\($/.test(code) && /\bCALL\b/i.test(code);
+      if (
+        !code.trim() ||
+        /[;,]$/.test(code) ||
+        openCall ||
+        /:=/.test(code) ||
+        /^\s*[A-Za-z_]\w{0,3}:$/.test(code)
+      ) {
         return line;
       }
       const comment = line.slice(code.length);
@@ -142,5 +160,10 @@ export function buildSource(snippet: Snippet, options: ExportOptions): ExportRes
     "",
   ].join("\n");
 
-  return { ok: true, source, fileName: `${name}.${options.format === "SCL" ? "scl" : "awl"}` };
+  return {
+    ok: true,
+    source,
+    fileName: `${name}.${options.format === "SCL" ? "scl" : "awl"}`,
+    globals: globalNames(body, [name]),
+  };
 }

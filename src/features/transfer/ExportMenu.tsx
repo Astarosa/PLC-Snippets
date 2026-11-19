@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ADAPTERS, FAMILIES } from "../../core/io/registry";
 import type { Snippet } from "../../core/snippet/schema";
+import { useSettings } from "../../state/settings";
 import { runExport } from "../../storage/transfer";
+import { MnemonicSwitch } from "../snippet/StlView";
 
 export interface ExportStatus {
   kind: "ok" | "warning" | "error";
@@ -30,6 +32,8 @@ export function ExportMenu({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const stlMnemonic = useSettings((s) => s.stlMnemonic) ?? "DE";
+  const setStlMnemonic = useSettings((s) => s.setStlMnemonic);
 
   useEffect(() => {
     if (!open) return;
@@ -44,7 +48,7 @@ export function ExportMenu({
     setOpen(false);
     if (onPick?.(adapterId)) return;
     try {
-      const outcome = await runExport(adapterId, snippets);
+      const outcome = await runExport(adapterId, snippets, { stlMnemonic });
       if (!outcome.path && outcome.warnings.length === 0) return; // annulé
       if (!outcome.path) onStatus({ kind: "error", text: outcome.warnings.join(" · ") });
       else if (outcome.warnings.length > 0)
@@ -79,6 +83,14 @@ export function ExportMenu({
                 <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                   {family}
                 </p>
+                {family === "TIA Portal" && (
+                  <div className="flex items-center justify-between px-3 py-1.5 text-xs text-slate-400">
+                    <span title="Doit correspondre à Options → Settings → General → Mnemonic dans TIA">
+                      Mnémonique LIST (.awl)
+                    </span>
+                    <MnemonicSwitch value={stlMnemonic} onChange={setStlMnemonic} />
+                  </div>
+                )}
                 {adapters.map((a) => {
                   const refusals = snippets.map((s) => a.canExport?.(s) ?? null);
                   const none = snippets.length > 0 && refusals.every((r) => r !== null);
