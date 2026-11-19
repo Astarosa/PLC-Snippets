@@ -12,7 +12,7 @@ export const simaticMlAdapter: FormatAdapter = {
   label: "SimaticML (.xml)",
   family: "TIA Portal",
   lossless: false,
-  keeps: "LADDER · expérimental",
+  keeps: "LADDER (TIA V20)",
   detect: (s) => xmlFiles(s).length > 0,
   import: (s) => xmlFiles(s).map((f) => readSimaticMl(f.content, f.path)),
   canExport: (snippet: Snippet) => (snippet.variants.some((v) => v.lang === "LAD") ? null : "pas de LADDER"),

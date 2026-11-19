@@ -9,6 +9,10 @@ if (start < 0) {
   console.error(`CHANGELOG.md : section « ## v${version} » introuvable. Ajoute les nouveautés avant de publier.`);
   process.exit(1);
 }
+if (lines.filter((l) => l.trim() === `## v${version}`).length > 1) {
+  console.error(`CHANGELOG.md : la section « ## v${version} » apparaît plusieurs fois. Fusionne-les avant de publier.`);
+  process.exit(1);
+}
 const end = lines.findIndex((l, i) => i > start && l.startsWith("## "));
 const notes = lines
   .slice(start + 1, end < 0 ? undefined : end)

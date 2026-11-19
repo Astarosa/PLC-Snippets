@@ -7,7 +7,8 @@ import type { Snippet, SnippetInterface, Variable } from "../../snippet/schema";
  * Écriture d'un bloc LAD au format SimaticML.
  * Cible par défaut : TIA Portal V20 (Interface v5, FlgNet v5, d'après un vrai export V20).
  * V17 (FlgNet v4) reste possible mais n'est calé que sur des fichiers synthétiques.
- * EXPÉRIMENTAL : structure calée sur un vrai export V20, mais pas encore réimportée dans TIA.
+ * V20 validé : un fichier généré par l'app a été réimporté avec succès dans TIA V20.
+ * V17 n'est calé que sur des fichiers synthétiques.
  */
 
 const NS_INTERFACE = "http://www.siemens.com/automation/Openness/SW/Interface/v5";
@@ -391,7 +392,9 @@ export function writeSimaticMl(
   let nextUid = 20;
   const uid = () => ++nextUid;
   const warnings: string[] = [
-    `Export SimaticML ${version} expérimental : vérifie l'import dans TIA avant de t'en servir`,
+    ...(version === "V20"
+      ? []
+      : [`Export SimaticML ${version} non validé dans TIA : vérifie l'import avant de t'en servir`]),
   ];
   if (blockNumber === 1) warnings.push("Numéro de bloc 1 : à changer dans TIA si besoin");
 

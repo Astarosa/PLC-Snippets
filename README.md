@@ -178,7 +178,7 @@ Les zips sont contrôlés côté Rust (chemins hors archive refusés, taille pla
 | Partager | PLC Snippets (.zip) | tout : variantes, notes, commentaires, tags |
 | TIA Portal | Source externe SCL (.scl) | SCL seul (généré depuis le LADDER si besoin) |
 | TIA Portal | Source externe LIST (.awl) | LIST seul, dans la mnémonique choisie |
-| TIA Portal | SimaticML (.xml) — **expérimental** | LADDER : bloc LAD avec réseaux, titres, commentaires, interface |
+| TIA Portal | SimaticML (.xml), validé en V20 | LADDER : bloc LAD avec réseaux, titres, commentaires, interface |
 | Schneider / CODESYS | PLCopen XML | bientôt |
 
 Pour partager avec un ami : **toujours le zip** (le seul format complet).
@@ -186,7 +186,7 @@ Pour partager avec un ami : **toujours le zip** (le seul format complet).
 Dans TIA : *Sources externes* → *Ajouter un nouveau fichier externe* → clic droit → *Générer les blocs*.
 Un NETWORK devient une FC sans interface (ses variables globales doivent exister dans l'API).
 
-### SimaticML (LADDER ↔ TIA) — expérimental
+### SimaticML (LADDER ↔ TIA)
 
 - **Depuis TIA** : obtenir le `.xml` d'un bloc LAD (en V17 : *Version Control Interface* — espace de travail
   qui écrit chaque bloc en SimaticML — ou un outil Openness), puis l'importer ici. Sont repris : contacts NO / NC, fronts P / N, bobines, S / R, OU,
@@ -198,7 +198,8 @@ Un NETWORK devient une FC sans interface (ses variables globales doivent exister
   utiliser des mnémoniques.
 - L'export vise **TIA V20** (format relevé sur un vrai export V20, `fixtures/simaticml/real-v20/`).
   Le reste des tests repose sur des fichiers synthétiques (`fixtures/simaticml/synthetic-v17/`).
-  Tant qu'un fichier généré n'a pas été réimporté avec succès dans TIA, l'export reste marqué expérimental.
+  Un fichier généré a été réimporté avec succès dans TIA V20 : l'export V20 est validé. La V17 n'est pas
+  validée (signalée à l'export).
 
 ### Compatibilité entre versions de l'application
 

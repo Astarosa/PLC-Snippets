@@ -136,9 +136,10 @@ describe("export SimaticML", () => {
     expect(back.snippet?.meta.interface).toEqual(snippet.meta.interface);
     expect(back.snippet?.meta.blockType).toBe(snippet.meta.blockType);
   });
-  it("marque l'export comme expérimental", () => {
+  it("V20 validé dans TIA : pas d'avertissement « non validé », V17 si", () => {
     const snippet = load("01_contacts.xml").snippet;
     if (!snippet) throw new Error("import");
-    expect(writeSimaticMl(snippet, "Bloc").warnings[0]).toMatch(/expérimental/);
+    expect(writeSimaticMl(snippet, "Bloc").warnings.join(" ")).not.toMatch(/non validé|expérimental/);
+    expect(writeSimaticMl(snippet, "Bloc", { version: "V17" }).warnings.join(" ")).toMatch(/non validé/);
   });
 });

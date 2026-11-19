@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "../../components/Badge";
+import { APP_VERSION } from "../../core/app-version";
 import { moveId } from "../../core/snippet/order";
 import { matchesQuery } from "../../core/snippet/parse";
 import { LANG_SHORT, type Lang } from "../../core/snippet/schema";
@@ -80,7 +81,12 @@ export function Sidebar() {
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-slate-800 bg-slate-900">
       <header className="space-y-2 border-b border-slate-800 p-3">
-        <h1 className="text-sm font-semibold tracking-wide text-slate-100">PLC Snippets</h1>
+        <h1 className="flex items-baseline gap-2 text-sm font-semibold tracking-wide text-slate-100">
+          PLC Snippets
+          <span className="font-mono text-[11px] font-normal tracking-normal text-slate-500">
+            {APP_VERSION}
+          </span>
+        </h1>
         <div className="flex items-center gap-2">
           <span className="truncate font-mono text-[11px] text-slate-500" title={libraryPath ?? ""}>
             {libraryPath ?? "Aucune bibliothèque"}

@@ -125,7 +125,7 @@ export function StatusLine({ status, onClose }: { status: ExportStatus | null; o
   const color = { ok: "text-emerald-400", warning: "text-amber-300", error: "text-red-400" }[status.kind];
   return (
     <p className={`flex items-start gap-2 text-xs ${color}`}>
-      <span className="flex-1 break-all">{status.text}</span>
+      <span className="min-w-0 flex-1 [overflow-wrap:anywhere] [word-break:normal]">{status.text}</span>
       <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-300">
         ✕
       </button>

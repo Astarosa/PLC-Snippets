@@ -3,12 +3,15 @@
 Chaque version publiée a sa section `## vX.Y.Z`. Le workflow « Publier une version » en reprend le
 texte pour la release GitHub et pour la notification de mise à jour dans l'application.
 
+## v0.3.4
+
+- Export SimaticML (LADDER) validé dans TIA V20 : il n'est plus marqué expérimental.
+- Numéro de version et de build affichés à côté du nom de l'application.
+- Les messages d'export reviennent à la ligne par mots entiers au lieu de couper un mot en deux.
+
 ## v0.3.3
 
 - Test de la mise à jour automatique.
-
-## v0.3.3
-
 - Export LIST (.awl) vers TIA corrigé : les parenthèses « U( » / « A( » sont maintenant terminées
   par « ; » comme TIA l'exige (la génération du bloc échouait).
 - Choix de la mnémonique (allemande ou internationale) dans « Exporter ▾ » et dans le panneau
