@@ -36,9 +36,12 @@ L'exécutable seul (version portable) est `src-tauri/target/release/plc-snippets
 
 Le workflow `.github/workflows/build.yml` tourne sur un runner Windows :
 
-- **à chaque push sur `main` ou PR** : lint, tests TS et Rust, build. L'installeur se
-  télécharge dans l'onglet *Actions* → le run → *Artifacts* → `plc-snippets-windows`
-  (contient le setup .exe, le .msi et l'exe portable) ;
+- **à chaque PR et push sur `main`** : lint, tests TS et Rust (~1 min 30). Rien ne tourne si
+  seuls des `.md` ou `docs/` changent ;
+- **sur `main` (après fusion) ou à la demande** (*Actions → Build Windows → Run workflow*, sur
+  n'importe quelle branche) : en plus, un installeur de test, compilé sans LTO pour aller vite.
+  Il se télécharge dans l'onglet *Actions* → le run → *Artifacts* → `plc-snippets-windows`
+  (setup .exe et exe portable). L'installeur publié, optimisé et signé, vient de la release ;
 - **workflow « Publier une version »** (onglet *Actions* → *Run workflow*) : publie une release
   complète, sans passer par le formulaire de release ni créer de tag à la main.
 
