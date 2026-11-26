@@ -1,4 +1,5 @@
 import { plcTagsXlsxAdapter } from "./plc-tags-xlsx";
+import { plcopenAdapter } from "./plcopen";
 import { plcSnippetsAdapter } from "./plcsnippets";
 import { simaticMlAdapter } from "./simaticml/adapter";
 import { tiaAwlAdapter, tiaSclAdapter } from "./tia-source";
@@ -14,14 +15,7 @@ export const ADAPTERS: FormatAdapter[] = [
   tiaAwlAdapter,
   simaticMlAdapter,
   plcTagsXlsxAdapter,
-  {
-    id: "plcopen",
-    label: "PLCopen XML (.xml)",
-    family: "Schneider / CODESYS",
-    lossless: false,
-    keeps: "LADDER inclus",
-    planned: true,
-  },
+  plcopenAdapter,
 ];
 
 export const FAMILIES = ["Partager", "TIA Portal", "Schneider / CODESYS"] as const;

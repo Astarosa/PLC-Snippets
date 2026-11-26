@@ -36,6 +36,10 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 - Imprimer / PDF (menu ⋯ ou Ctrl+P sur la page d'un snippet) : fiche en thème clair avec le schéma,
   l'interface, les variables API, chaque variante de code et les notes. Pour un PDF, choisir
   « Microsoft Print to PDF » dans la fenêtre d'impression.
+- Export PLCopen XML (Schneider / CODESYS) pour CODESYS et Machine Expert : un FB devient un
+  FUNCTION_BLOCK, une FC une FUNCTION, un NETWORK un PROGRAM, corps en ST traduit du SCL. Variables API
+  et DB d'instance dans une liste globale ; bits d'E/S avec leur adresse (%IX0.0), autres adresses en
+  commentaire (numérotation différente de TIA). À valider dans Machine Expert.
 - Correction : les constantes en base 16 / 2 (`16#FF`, `2#1010`) sont acceptées dans le LADDER, comme
   l'annonçait la documentation.
 - Génération du LIST (STL / AWL) depuis le LADDER, comme pour le SCL : case « Générer le LIST

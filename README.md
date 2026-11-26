@@ -151,8 +151,8 @@ Le dossier peut vivre dans Nextcloud (synchronisation) et devenir un dépôt git
       inspecteur d'opérandes et de paramètres, synchronisé avec le texte DSL
 - [x] **8. Import / export et partage** : zip PLC Snippets (complet), sources TIA .scl / .awl
       (import et export), formats versionnés avec migrations
-- [~] **9.** SimaticML (fait, expérimental, à valider dans TIA), PLCopen XML (Machine Expert / CODESYS),
-      rendu Markdown des notes
+- [~] **9.** SimaticML (fait, validé en V20), PLCopen XML (fait, corps en ST, à valider dans
+      Machine Expert / CODESYS), rendu Markdown des notes
 
 L'icône est générée depuis `app-icon.png` : `npx tauri icon app-icon.png`.
 
@@ -183,12 +183,18 @@ Les zips sont contrôlés côté Rust (chemins hors archive refusés, taille pla
 | TIA Portal | Source externe SCL (.scl) | SCL seul (généré depuis le LADDER si besoin) |
 | TIA Portal | Source externe LIST (.awl) | LIST seul (généré depuis le LADDER si besoin), dans la mnémonique choisie |
 | TIA Portal | SimaticML (.xml), validé en V20 | LADDER : bloc LAD avec réseaux, titres, commentaires, interface |
-| Schneider / CODESYS | PLCopen XML | bientôt |
+| Schneider / CODESYS | PLCopen XML (.xml), à valider | interface, variables globales, code en ST (traduit du SCL) |
 
 Pour partager avec un ami : **toujours le zip** (le seul format complet).
 
 Dans TIA : *Sources externes* → *Ajouter un nouveau fichier externe* → clic droit → *Générer les blocs*.
 Un NETWORK devient une FC sans interface (ses variables globales doivent exister dans l'API).
+
+Dans CODESYS / Machine Expert : *Projet* → *Importer PLCopenXML*. Un FB devient un FUNCTION_BLOCK, une FC
+une FUNCTION (retour BOOL), un NETWORK un PROGRAM ; le corps est en ST, traduit du SCL (`#Locale` →
+`Locale`, `"Tag"` → `Tag`, `"T".TON(…)` → `T(…)`). Les variables API et les DB d'instance vont dans la
+liste globale `GVL_PLCSnippets`. Seuls les bits d'E/S gardent leur adresse (`%I0.0` → `%IX0.0`) : CODESYS
+numérote les mots autrement que TIA, les autres adresses sont notées en commentaire.
 
 ### SimaticML (LADDER ↔ TIA)
 
