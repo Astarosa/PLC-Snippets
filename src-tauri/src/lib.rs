@@ -2,6 +2,7 @@ mod library;
 mod transfer;
 
 use library::RawSnippet;
+use tauri_plugin_opener::OpenerExt;
 
 // Les commandes sont `async` pour s'exécuter hors du thread de l'interface :
 // une grosse bibliothèque ne fige jamais la fenêtre.
@@ -36,6 +37,21 @@ async fn export_source(path: String, content: String) -> Result<(), String> {
     library::export_source(&path, &content)
 }
 
+/// Ouvre le dossier d'un snippet dans l'explorateur de fichiers. Le chemin est construit et
+/// vérifié ici (dossier de snippet de la bibliothèque) : l'interface n'a aucune permission
+/// d'ouvrir un chemin quelconque.
+#[tauri::command]
+async fn open_snippet_folder(
+    app: tauri::AppHandle,
+    library: String,
+    id: String,
+) -> Result<(), String> {
+    let dir = library::folder(&library, &id)?;
+    app.opener()
+        .open_path(dir.to_string_lossy(), None::<&str>)
+        .map_err(|e| format!("Impossible d'ouvrir le dossier : {e}"))
+}
+
 #[tauri::command]
 async fn read_order(library: String) -> Result<Vec<String>, String> {
     library::read_order(&library)
@@ -64,12 +80,14 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             list_snippets,
             read_snippet,
             write_snippet,
             create_snippet,
             delete_snippet,
+            open_snippet_folder,
             export_source,
             read_order,
             write_order,

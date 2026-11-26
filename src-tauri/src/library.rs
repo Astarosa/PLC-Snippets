@@ -82,6 +82,17 @@ fn snippet_dir(library: &str, id: &str) -> Result<PathBuf, String> {
     Ok(library_dir(library)?.join(id))
 }
 
+/// Dossier d'un snippet existant, à ouvrir dans l'explorateur. Seul un dossier de snippet
+/// de la bibliothèque est accepté (identifiant validé, `snippet.json` présent) : la commande
+/// ne peut pas servir à ouvrir un autre chemin, ni un fichier exécutable.
+pub fn folder(library: &str, id: &str) -> Result<PathBuf, String> {
+    let dir = snippet_dir(library, id)?;
+    if !dir.join(META_FILE).is_file() {
+        return Err(format!("Snippet introuvable : « {id} »"));
+    }
+    Ok(dir)
+}
+
 /// Écrit dans un fichier temporaire puis renomme : un plantage en pleine
 /// écriture ne laisse jamais un fichier à moitié écrit.
 fn write_atomic(path: &Path, content: &str) -> Result<(), String> {
@@ -409,6 +420,20 @@ mod tests {
         );
         // library.json n'est pas un snippet
         assert!(list(lib_str).unwrap().is_empty());
+        fs::remove_dir_all(lib).unwrap();
+    }
+
+    #[test]
+    fn folder_only_opens_existing_snippets() {
+        let lib = temp_library("folder");
+        let lib_str = lib.to_str().unwrap();
+        create(lib_str, &sample("tempo")).unwrap();
+        assert_eq!(folder(lib_str, "tempo").unwrap(), lib.join("tempo"));
+        assert!(folder(lib_str, "absent").is_err());
+        assert!(folder(lib_str, "../etc").is_err());
+        // Un dossier sans snippet.json n'est pas un snippet.
+        fs::create_dir_all(lib.join("vide")).unwrap();
+        assert!(folder(lib_str, "vide").is_err());
         fs::remove_dir_all(lib).unwrap();
     }
 

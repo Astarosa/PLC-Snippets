@@ -12,8 +12,8 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 - Thème clair, en plus du thème sombre (bouton soleil / lune, mémorisé).
 - Bibliothèque : filtres par type de bloc, langage et tag ; ⛔ sur les snippets dont le LADDER
   bloquerait l'export. Accueil avec les derniers modifiés et les snippets à vérifier avant export.
-- Page d'un snippet : « Dupliquer » et les actions secondaires dans un menu ⋯, tags cliquables pour
-  filtrer la bibliothèque, interface et variables API côte à côte.
+- Page d'un snippet : « Dupliquer », « Ouvrir le dossier » et les autres actions secondaires dans un
+  menu ⋯, tags cliquables pour filtrer la bibliothèque, interface et variables API côte à côte.
 - Raccourcis clavier : Ctrl+N (nouveau), Ctrl+F (rechercher), Ctrl+S (enregistrer), Ctrl+D (dupliquer).
 - Détection des erreurs dans le LADDER avant l'export vers TIA. Les erreurs (opérande « ??? »,
   instance manquante, variable locale non déclarée, type incompatible, DB d'instance qui porte le

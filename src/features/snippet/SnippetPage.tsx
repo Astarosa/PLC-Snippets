@@ -11,6 +11,7 @@ import { relativeDate } from "../../core/snippet/filter";
 import { LANG_LABELS, type Lang } from "../../core/snippet/schema";
 import { useLibraryFilters } from "../../state/library-filters";
 import { useSettings } from "../../state/settings";
+import { openSnippetFolder } from "../../storage/folders";
 import { useCreateSnippet, useDeleteSnippet, useLibrary, useSnippet } from "../../storage/queries";
 import { LadderPreview } from "../ladder/LadderPreview";
 import { useShortcut } from "../shortcuts";
@@ -44,14 +45,17 @@ export function SnippetPage() {
   };
   useShortcut("duplicate", duplicate);
 
+  const flash = (message: string) => {
+    setNotice(message);
+    setTimeout(() => setNotice(null), 3000);
+  };
   const copy = async (text: string, done: string) => {
     try {
       await writeText(text);
-      setNotice(done);
+      flash(done);
     } catch {
-      setNotice("Échec de la copie.");
+      flash("Échec de la copie.");
     }
-    setTimeout(() => setNotice(null), 2000);
   };
 
   // Revient sur le premier onglet disponible quand on change de snippet.
@@ -65,8 +69,6 @@ export function SnippetPage() {
   const { meta } = snippet;
   const variant = snippet.variants.find((v) => v.lang === tab) ?? snippet.variants[0];
   const lad = snippet.variants.find((v) => v.lang === "LAD");
-  const sep = libraryPath?.includes("\\") ? "\\" : "/";
-  const folderPath = `${libraryPath ?? ""}${sep}${snippet.id}`;
 
   const onDelete = async () => {
     const confirmed = await ask(
@@ -112,10 +114,15 @@ export function SnippetPage() {
                 ...(lad
                   ? [{ label: "Copier le LADDER", onSelect: () => copy(lad.content, "LADDER copié.") }]
                   : []),
-                {
-                  label: "Copier le chemin du dossier",
-                  onSelect: () => copy(folderPath, "Chemin du dossier copié."),
-                },
+                ...(libraryPath
+                  ? [
+                      {
+                        label: "Ouvrir le dossier",
+                        onSelect: () =>
+                          openSnippetFolder(libraryPath, snippet.id).catch((e) => flash(String(e))),
+                      },
+                    ]
+                  : []),
                 { label: "Supprimer…", danger: true, separated: true, onSelect: onDelete },
               ]}
             />
@@ -125,7 +132,7 @@ export function SnippetPage() {
         {createSnippet.error && (
           <p className="text-sm text-red-400">Duplication impossible : {String(createSnippet.error)}</p>
         )}
-        {notice && <p className="text-sm text-emerald-300">{notice}</p>}
+        {notice && <p className="text-sm text-slate-300">{notice}</p>}
         {meta.summary && <p className="text-sm text-slate-400">{meta.summary}</p>}
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge>{meta.blockType}</Badge>

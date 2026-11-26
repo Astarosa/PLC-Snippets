@@ -260,7 +260,7 @@ Le texte DSL reste la référence : chaque modification visuelle le réécrit da
 - **Filtres** sous la recherche : type de bloc, langage, tags (cliquer un tag sur la page d'un snippet filtre
   la bibliothèque). Un ⛔ signale les snippets dont le LADDER bloquerait l'export TIA.
 - **Accueil** : derniers modifiés, snippets à vérifier avant export, raccourcis.
-- Page d'un snippet, menu **⋯** : Dupliquer, Copier le LADDER, Copier le chemin du dossier, Supprimer.
+- Page d'un snippet, menu **⋯** : Dupliquer, Copier le LADDER, Ouvrir le dossier (explorateur), Supprimer.
 - **Thème clair / sombre** : bouton soleil / lune en haut de la bibliothèque (mémorisé).
 
 | Raccourci | Action |
