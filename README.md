@@ -269,6 +269,7 @@ Le texte DSL reste la référence : chaque modification visuelle le réécrit da
 | Ctrl+F | Rechercher dans la bibliothèque |
 | Ctrl+S | Enregistrer (éditeur) |
 | Ctrl+D | Dupliquer le snippet ouvert |
+| Ctrl+Z / Ctrl+Y | Annuler / rétablir dans l'éditeur LADDER (100 étapes) |
 | Suppr / Échap | Effacer / désélectionner dans le schéma LADDER |
 
 ## Ordre des snippets

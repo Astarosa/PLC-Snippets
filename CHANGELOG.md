@@ -16,6 +16,8 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
   menu ⋯, tags cliquables pour filtrer la bibliothèque, interface et variables API côte à côte.
 - Raccourcis clavier : Ctrl+N (nouveau), Ctrl+F (rechercher), Ctrl+S (enregistrer), Ctrl+D (dupliquer).
 - Retour à l'accueil : titre « PLC Snippets » et icône maison, aussi dans la bibliothèque repliée.
+- Annuler / rétablir dans l'éditeur LADDER : Ctrl+Z, Ctrl+Y (ou Ctrl+Maj+Z), ou les boutons ↶ ↷.
+  Dans un champ de saisie, Ctrl+Z reste celui du champ.
 - Génération du LIST (STL / AWL) depuis le LADDER, comme pour le SCL : case « Générer le LIST
   automatiquement », dans la mnémonique choisie (allemand ou anglais). Contacts, branches, bobines,
   fronts, comparateurs, MOVE / calculs et appels de temporisations / compteurs. Les types des

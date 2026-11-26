@@ -245,13 +245,30 @@ export function VisualEditor({
     setRange(null);
   };
 
+  // LADDER modifié de l'extérieur (annuler / rétablir, mode texte) : la sélection peut ne plus
+  // exister, on la retire. Les modifications faites ici ne la touchent pas.
+  const emitted = useRef(source);
+  useEffect(() => {
+    if (source === emitted.current) return;
+    emitted.current = source;
+    setSelected(null);
+    setRange(null);
+  }, [source]);
+  const emit = useCallback(
+    (text: string) => {
+      emitted.current = text;
+      onChange(text);
+    },
+    [onChange],
+  );
+
   const commit = useCallback(
     (next: LadProgram, focus?: Expr | Output | null) => {
-      onChange(printLadder(next));
+      emit(printLadder(next));
       setSelected(focus ? findRef(next, focus) : null);
       setRange(null);
     },
-    [onChange],
+    [emit],
   );
 
   const drop = useCallback(
@@ -417,7 +434,7 @@ export function VisualEditor({
         program={program}
         selected={selected}
         // Modifier un élément ne change pas son adresse : il reste sélectionné.
-        onChange={(next) => onChange(printLadder(next))}
+        onChange={(next) => emit(printLadder(next))}
         onReplaceSelection={(next, focus) => commit(next, focus)}
         onDeleted={() => select(null)}
       />

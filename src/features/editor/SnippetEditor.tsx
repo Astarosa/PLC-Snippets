@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { CodeBlock } from "../../components/CodeBlock";
+import { emptyHistory, type History, record, redo, undo } from "../../core/history";
 import { checkLadderSource, errorsOf, warningsOf } from "../../core/ladder/check";
 import type { ElementRef } from "../../core/ladder/edit";
 import { parseLadder } from "../../core/ladder/parse";
@@ -106,6 +107,22 @@ export function SnippetEditor({
     if (!saving) onSave(form);
   };
   useShortcut("save", save);
+
+  // Annuler / rétablir sur le LADDER (le mode texte garde aussi l'annulation de l'éditeur de code).
+  const [ladHistory, setLadHistory] = useState<History<string>>(emptyHistory);
+  const changeLad = (content: string, group: "texte" | null) => {
+    if (content === form.lad.content) return;
+    setLadHistory((h) => record(h, form.lad.content, group));
+    set("lad", { ...form.lad, content });
+  };
+  const stepLad = (step: typeof undo) => {
+    const result = step(ladHistory, form.lad.content);
+    if (!result) return;
+    setLadHistory(result.history);
+    set("lad", { ...form.lad, content: result.value });
+  };
+  useShortcut("undo", () => stepLad(undo));
+  useShortcut("redo", () => stepLad(redo));
 
   const showProblem = (ref: ElementRef | undefined) => {
     if (!ref) return;
@@ -371,6 +388,28 @@ export function SnippetEditor({
                     ))}
                   </div>
                 )}
+                {form.lad.enabled && (
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => stepLad(undo)}
+                      disabled={ladHistory.past.length === 0}
+                      title="Annuler (Ctrl+Z)"
+                      className="rounded-md border border-slate-700 px-2 py-0.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+                    >
+                      ↶ Annuler
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => stepLad(redo)}
+                      disabled={ladHistory.future.length === 0}
+                      title="Rétablir (Ctrl+Y)"
+                      className="rounded-md border border-slate-700 px-2 py-0.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+                    >
+                      ↷ Rétablir
+                    </button>
+                  </div>
+                )}
                 <span className="text-xs text-slate-400">
                   {ladMode === "visual"
                     ? "Glisse les symboles dans le réseau."
@@ -381,7 +420,7 @@ export function SnippetEditor({
                 (ladMode === "visual" ? (
                   <VisualEditor
                     source={form.lad.content}
-                    onChange={(content) => set("lad", { ...form.lad, content })}
+                    onChange={(content) => changeLad(content, null)}
                     check={checkContext}
                     tags={tagsBinding}
                     panel={elementPanel}
@@ -395,7 +434,7 @@ export function SnippetEditor({
                     <CodeEditor
                       language="lad"
                       value={form.lad.content}
-                      onChange={(content) => set("lad", { ...form.lad, content })}
+                      onChange={(content) => changeLad(content, "texte")}
                       minHeight="90px"
                       placeholder={LAD_PLACEHOLDER}
                     />
