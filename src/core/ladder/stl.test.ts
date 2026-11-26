@@ -189,11 +189,70 @@ describe("ladderToStl", () => {
     ]);
   });
 
-  it("refuse une boîte dans une branche parallèle, avec une raison claire", () => {
-    const parsed = parseLadder('NO "A" | TON "T" PT=T#1S -> COIL "Q"');
+  it("temporisation dans une branche : appelée avant le rung, sa sortie sert de contact", () => {
+    const { code } = stl('NO "A" & ( TON "T" PT=T#1S | NO "B" ) -> COIL "Q"');
+    expect(code).toEqual([
+      'U     "A"',
+      '=     "T".IN',
+      'CALL  TON , "T"',
+      "{time_type := 'Time'}",
+      "(",
+      "   PT := T#1S",
+      ");",
+      'U     "A"',
+      "U(",
+      'O     "T".Q',
+      'O     "B"',
+      ")",
+      '=     "Q"',
+    ]);
+  });
+
+  it("branche sans condition avant la boîte : SET sur l'entrée", () => {
+    const { code } = stl('NO "A" | NO "B" & CTU "C" PV=3 -> COIL "Q"');
+    expect(code.slice(0, 3)).toEqual(['U     "B"', '=     "C".CU', 'CALL  CTU , "C"']);
+    expect(code.slice(-8)).toEqual([
+      "U(",
+      'O     "A"',
+      "O(",
+      'U     "B"',
+      'U     "C".Q',
+      ")",
+      ")",
+      '=     "Q"',
+    ]);
+    const first = stl('TON "T" PT=T#1S | NO "A" -> COIL "Q"').code;
+    expect(first.slice(0, 2)).toEqual(["SET", '=     "T".IN']);
+  });
+
+  it("MOVE en parallèle sous une même condition", () => {
+    const { code } = stl('NO "Go" & ( MOVE IN=1 OUT="X" | MOVE IN=2 OUT="Y" ) -> COIL "Fait"');
+    expect(code).toEqual([
+      'U     "Go"',
+      "SPBNB M001",
+      "L     1",
+      'T     "X"',
+      "M001: NOP 0",
+      'U     "Go"',
+      "SPBNB M002",
+      "L     2",
+      'T     "Y"',
+      "M002: NOP 0",
+      'U     "Go"',
+      '=     "Fait"',
+    ]);
+    // Avec une bobine : la branche toujours passante ne change pas la condition.
+    expect(stl('NO "Go" & ( MOVE IN=1 OUT="X" | NO "B" ) -> COIL "Q"').code.slice(-2)).toEqual([
+      'U     "Go"',
+      '=     "Q"',
+    ]);
+  });
+
+  it("refuse une boîte de branche placée après un front, avec une raison claire", () => {
+    const parsed = parseLadder('P "A" MEM="M" & ( TON "T" PT=T#1S | NO "B" ) -> COIL "Q"');
     if (!parsed.ok) throw new Error(parsed.error.message);
     const r = ladderToStl(parsed.program, { mnemonic: "DE" });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toMatch(/TON dans une branche parallèle/);
+    if (!r.ok) expect(r.error).toMatch(/TON dans une branche parallèle, après un front/);
   });
 });

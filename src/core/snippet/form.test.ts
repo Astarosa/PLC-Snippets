@@ -211,7 +211,12 @@ describe("LIST généré depuis le LADDER", () => {
     const form = emptyForm();
     Object.assign(form, { id: "gen-list", title: "LIST généré", blockType: "NETWORK" });
     form.scl.enabled = false;
-    form.lad = { enabled: true, file: "main.lad", content: 'NO "A" | TON "T" PT=T#1S -> COIL "Q"' };
+    // Boîte de branche après un front : seul cas encore refusé par le générateur LIST.
+    form.lad = {
+      enabled: true,
+      file: "main.lad",
+      content: 'P "A" MEM="M" & ( TON "T" PT=T#1S | NO "B" ) -> COIL "Q"',
+    };
     form.stl = { enabled: true, file: "main.awl", content: "", mnemonic: "DE", generated: true };
     const result = formToRaw(form, NOW);
     expect(result.ok).toBe(false);

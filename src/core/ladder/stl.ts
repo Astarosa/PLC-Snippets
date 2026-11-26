@@ -23,8 +23,11 @@ import {
  * - MOVE / calcul : exécuté seulement si EN = 1 (« SPBNB »), le fil repart de ENO (« U BIE ») ;
  * - bobines : « = », « S », « R » ; bobine inverse : « NOT / = / NOT ».
  *
- * Limite : une boîte (temporisation, compteur, MOVE, calcul) doit être sur la ligne principale
- * du rung, pas dans une branche parallèle. Sinon la génération est refusée avec un message.
+ * Boîte dans une branche parallèle : elle est exécutée avant la logique du rung, avec sa propre
+ * condition (les contacts qui la précèdent sur son chemin, ligne principale comprise). Dans la
+ * logique du rung, une temporisation / un compteur devient alors un contact sur sa sortie
+ * (« O "T".Q ») et un MOVE / calcul laisse passer le courant (ENO = EN). Limite : pas de front ni
+ * d'autre boîte avant elle sur ce chemin (les réévaluer fausserait le front ou l'ordre d'exécution).
  */
 
 export interface StlContext {
@@ -38,6 +41,39 @@ export interface StlContext {
 export type StlResult = { ok: true; stl: string; warnings: string[] } | { ok: false; error: string };
 
 class StlError extends Error {}
+
+type Box = Extract<Expr, { type: "box" }>;
+
+/** Toujours passant : MOVE / calcul (ENO = EN), série de tels éléments, ou parallèle dont une branche l'est. */
+function alwaysTrue(e: Expr): boolean {
+  if (e.type === "box") return !BOX_SPECS[e.box].instance;
+  if (e.type === "series") return e.items.every(alwaysTrue);
+  if (e.type === "parallel") return e.branches.some(alwaysTrue);
+  return false;
+}
+
+/** Contient un front ou une boîte (à ne pas réévaluer). */
+function hasSideEffect(e: Expr): boolean {
+  if (e.type === "edge" || e.type === "box") return true;
+  if (e.type === "series") return e.items.some(hasSideEffect);
+  if (e.type === "parallel") return e.branches.some(hasSideEffect);
+  return false;
+}
+
+/** Boîtes placées dans une branche parallèle, avec les éléments qui les précèdent sur leur chemin. */
+function branchBoxes(condition: Expr): { box: Box; before: Expr[] }[] {
+  const found: { box: Box; before: Expr[] }[] = [];
+  const walk = (e: Expr, before: Expr[], inBranch: boolean) => {
+    if (e.type === "box" && inBranch) found.push({ box: e, before });
+    else if (e.type === "series")
+      e.items.forEach((item, i) => {
+        walk(item, [...before, ...e.items.slice(0, i)], inBranch);
+      });
+    else if (e.type === "parallel") for (const b of e.branches) walk(b, before, true);
+  };
+  walk(condition, [], false);
+  return found;
+}
 
 const line = (instruction: string, operand = "") =>
   operand ? `${instruction.padEnd(6)}${operand}` : instruction;
@@ -114,8 +150,9 @@ class Generator {
     return "I";
   }
 
-  /** Terme logique combiné au RLO courant par « U » (ET) ou « O » (OU). */
+  /** Terme logique combiné au RLO courant par « U » (ET) ou « O » (OU). Rien si toujours passant. */
   term(e: Expr, op: "U" | "O"): void {
+    if (alwaysTrue(e)) return;
     switch (e.type) {
       case "contact":
         this.emit(line(e.kind === "NC" ? `${op}N` : op, e.operand.text));
@@ -134,19 +171,21 @@ class Generator {
           ")",
         );
         return;
-      case "series":
+      case "series": {
         if (e.items.length === 0) throw new StlError("branche vide : relie-la à un contact.");
-        if (e.items.length === 1) {
-          this.term(e.items[0], op);
+        const items = e.items.filter((item) => !alwaysTrue(item));
+        if (items.length === 1) {
+          this.term(items[0], op);
           return;
         }
-        if (op === "U") for (const item of e.items) this.term(item, "U");
+        if (op === "U") for (const item of items) this.term(item, "U");
         else {
           this.emit("O(");
-          for (const item of e.items) this.term(item, "U");
+          for (const item of items) this.term(item, "U");
           this.emit(")");
         }
         return;
+      }
       case "parallel":
         if (e.branches.length === 1) {
           this.term(e.branches[0], op);
@@ -160,9 +199,9 @@ class Generator {
         }
         return;
       case "box":
-        throw new StlError(
-          `${e.box} dans une branche parallèle : pas encore générable en LIST. Place la boîte sur la ligne principale du rung.`,
-        );
+        // Boîte de branche déjà exécutée avant le rung : le fil continue depuis sa sortie.
+        this.emit(line(op, `${(e.instance as Operand).text}.${BOX_SPECS[e.box].mainOut}`));
+        return;
     }
   }
 
@@ -237,13 +276,35 @@ class Generator {
     else if (continues === "outputs") this.emit("SET");
   }
 
+  /** Boîtes des branches parallèles, exécutées avant la logique du rung avec leur condition. */
+  branchBoxes(condition: Expr) {
+    for (const { box, before } of branchBoxes(condition)) {
+      const blocking = before.find(hasSideEffect);
+      if (blocking)
+        throw new StlError(
+          `${box.box} dans une branche parallèle, après ${blocking.type === "edge" ? "un front" : "une autre boîte"} : pas générable en LIST. Sépare-les en deux rungs.`,
+        );
+      const terms = before.filter((e) => !alwaysTrue(e));
+      for (const t of terms) this.term(t, "U");
+      if (BOX_SPECS[box.box].instance) this.instanceBox(box, terms.length > 0, false);
+      else this.transferBox(box, terms.length > 0, null);
+    }
+  }
+
   rung(rung: Rung) {
     if (rung.comment !== undefined) this.emit(...rung.comment.split("\n").map((l) => `// ${l}`.trimEnd()));
-    const items = rung.condition.type === "series" ? rung.condition.items : [rung.condition];
+    this.branchBoxes(rung.condition);
+    let items = rung.condition.type === "series" ? rung.condition.items : [rung.condition];
+    // Sans bobine, la logique après la dernière boîte de la ligne principale ne sert à rien.
+    if (rung.outputs.length === 0) {
+      const lastBox = items.map((item) => item.type === "box").lastIndexOf(true);
+      items = items.slice(0, lastBox + 1);
+    }
     let hasIncoming = false;
     items.forEach((item, i) => {
       const last = i === items.length - 1;
       if (item.type !== "box") {
+        if (alwaysTrue(item)) return;
         this.term(item, "U");
         hasIncoming = true;
         return;
@@ -257,6 +318,8 @@ class Generator {
         hasIncoming = continues !== null;
       }
     });
+    // Condition toujours passante (ex. MOVE en parallèle seuls) : RLO à 1 pour les bobines.
+    if (!hasIncoming && rung.outputs.length > 0) this.emit("SET");
     this.outputs(rung.outputs);
   }
 

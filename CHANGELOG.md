@@ -46,7 +46,9 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
   automatiquement », dans la mnémonique choisie (allemand ou anglais). Contacts, branches, bobines,
   fronts, comparateurs, MOVE / calculs et appels de temporisations / compteurs. Les types des
   comparaisons et calculs (I / D / R) viennent de l'interface et des variables API ; un type inconnu
-  est signalé. Une boîte dans une branche parallèle n'est pas encore traduite (message clair).
+  est signalé. Une boîte dans une branche parallèle est exécutée avant la logique du rung, avec sa
+  propre condition ; sa sortie sert ensuite de contact (refusé seulement après un front ou une autre
+  boîte sur le même chemin, avec un message clair).
 - Export « Source externe LIST (.awl) » possible pour un snippet qui n'a que du LADDER : le LIST est
   généré à l'export, avec un réseau TIA par réseau LADDER.
 

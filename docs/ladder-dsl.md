@@ -117,6 +117,15 @@ P "Bp" MEM="M_Bp" & MOVE IN=1500 OUT="Consigne"
 Opérandes (`"Mnémo"`, `#Locale`, `%MW10`) ou constantes : `T#5S`, `T#1M30S`, `16#FF`, `INT#10`, `10`, `2.5`, `TRUE`, `FALSE`.
 Les sorties (ET, CV, OUT…) doivent être des variables.
 
+## Génération du LIST
+
+Comme TIA quand il traduit du CONT en LIST : `U` en série, `U(` … `O` … `)` pour les branches, `CALL`
+pour les temporisations et compteurs (le RLO entrant est écrit sur leur entrée), `SPBNB` pour MOVE et
+calculs. Une **boîte dans une branche parallèle** est exécutée avant la logique du rung, avec les contacts
+qui la précèdent sur son chemin ; dans la logique, une temporisation / un compteur devient un contact sur
+sa sortie (`O "T".Q`), un MOVE / calcul laisse passer le courant. Ce n'est pas possible si un front ou une
+autre boîte la précède sur ce chemin : il faut alors séparer en deux rungs.
+
 ## Limites connues
 
 - Pas de gestion de l'erreur de calcul : ENO recopie EN (pas de débordement ni de division par zéro signalés).
