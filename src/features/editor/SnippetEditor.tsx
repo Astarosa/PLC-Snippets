@@ -3,7 +3,15 @@ import { useMemo, useState } from "react";
 import { CodeBlock } from "../../components/CodeBlock";
 import { checkLadderSource } from "../../core/ladder/check";
 import { parseLadder } from "../../core/ladder/parse";
-import { generateScl, isSclGenerated, type SnippetForm, suggestId } from "../../core/snippet/form";
+import {
+  generateScl,
+  generateStl,
+  isSclGenerated,
+  isStlGenerated,
+  type SnippetForm,
+  stlContextOf,
+  suggestId,
+} from "../../core/snippet/form";
 import { undeclaredGlobals } from "../../core/snippet/plc-tags";
 import { BLOCK_TYPES, CPU_FAMILIES, type PlcTag } from "../../core/snippet/schema";
 import { convertStl, detectMnemonic } from "../../core/stl/mnemonics";
@@ -45,6 +53,8 @@ export function SnippetEditor({
   const [ladMode, setLadMode] = useState<"visual" | "text">("visual");
   const sclGenerated = isSclGenerated(form);
   const generated = sclGenerated ? generateScl(form.lad.content) : null;
+  const stlGenerated = isStlGenerated(form);
+  const generatedStl = stlGenerated ? generateStl(form.lad.content, stlContextOf(form)) : null;
   // Contrôles LADDER avant export TIA (type de bloc + interface déclarée).
   const checkContext = useMemo(
     () => ({ blockType: form.blockType, iface: form.interface, plcTags: form.plcTags }),
@@ -280,6 +290,15 @@ export function SnippetEditor({
           />
           Générer le SCL automatiquement depuis le LADDER
         </label>
+        <label className="flex items-center gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={form.stl.generated}
+            onChange={(e) => set("stl", { ...form.stl, enabled: true, generated: e.target.checked })}
+          />
+          Générer le LIST automatiquement depuis le LADDER
+          <span className="text-xs text-slate-500">(S7-300/400 et S7-1500)</span>
+        </label>
       </VariantSection>
 
       <VariantSection
@@ -314,8 +333,13 @@ export function SnippetEditor({
 
       <VariantSection
         title="LIST"
-        hint="STL / AWL (S7-300/400 et S7-1500, pas de LIST sur S7-1200)."
-        enabled={form.stl.enabled}
+        hint={
+          stlGenerated
+            ? "Généré depuis le LADDER : décoche la génération pour l'écrire à la main."
+            : "STL / AWL (S7-300/400 et S7-1500, pas de LIST sur S7-1200)."
+        }
+        enabled={form.stl.enabled || stlGenerated}
+        locked={stlGenerated}
         onToggle={(enabled) => set("stl", { ...form.stl, enabled })}
       >
         <div className="flex items-center gap-3">
@@ -325,27 +349,51 @@ export function SnippetEditor({
               set("stl", {
                 ...form.stl,
                 mnemonic,
-                content: convertStl(form.stl.content, form.stl.mnemonic, mnemonic),
+                // Le LIST généré est recalculé dans la nouvelle mnémonique : rien à convertir.
+                content: stlGenerated
+                  ? form.stl.content
+                  : convertStl(form.stl.content, form.stl.mnemonic, mnemonic),
               })
             }
           />
           <span className="text-xs text-slate-500">
-            Convertit le code entre mnémoniques allemandes et anglaises.
+            {stlGenerated
+              ? "Mnémonique du LIST généré (celle de ton projet TIA)."
+              : "Convertit le code entre mnémoniques allemandes et anglaises."}
           </span>
         </div>
-        <CodeEditor
-          language="stl"
-          value={form.stl.content}
-          onChange={(content) => {
-            // Code collé dans une zone vide : on reconnaît sa mnémonique.
-            const mnemonic = form.stl.content.trim()
-              ? form.stl.mnemonic
-              : (detectMnemonic(content) ?? form.stl.mnemonic);
-            set("stl", { ...form.stl, content, mnemonic });
-          }}
-          minHeight="160px"
-          placeholder={STL_PLACEHOLDER}
-        />
+        {generatedStl ? (
+          generatedStl.ok ? (
+            <>
+              <CodeBlock code={generatedStl.stl} title={`${form.stl.file} (généré)`} language="stl" />
+              {generatedStl.warnings.length > 0 && (
+                <ul className="space-y-0.5 rounded-lg border border-amber-900 bg-amber-950/30 px-3 py-2 text-xs text-amber-300">
+                  {generatedStl.warnings.map((w) => (
+                    <li key={w}>⚠ {w}</li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            <p className="rounded-lg border border-amber-900 bg-amber-950/40 p-3 font-mono text-sm text-amber-300">
+              {generatedStl.error}
+            </p>
+          )
+        ) : (
+          <CodeEditor
+            language="stl"
+            value={form.stl.content}
+            onChange={(content) => {
+              // Code collé dans une zone vide : on reconnaît sa mnémonique.
+              const mnemonic = form.stl.content.trim()
+                ? form.stl.mnemonic
+                : (detectMnemonic(content) ?? form.stl.mnemonic);
+              set("stl", { ...form.stl, content, mnemonic });
+            }}
+            minHeight="160px"
+            placeholder={STL_PLACEHOLDER}
+          />
+        )}
       </VariantSection>
 
       <section>

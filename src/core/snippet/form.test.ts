@@ -137,7 +137,13 @@ describe("LADDER dans le formulaire", () => {
 describe("LIST dans le formulaire", () => {
   it("enregistre la variante LIST avec sa mnémonique", () => {
     const form = filledForm();
-    form.stl = { enabled: true, file: "main.awl", content: "U E 0.0\n= A 4.0", mnemonic: "DE" };
+    form.stl = {
+      enabled: true,
+      file: "main.awl",
+      content: "U E 0.0\n= A 4.0",
+      mnemonic: "DE",
+      generated: false,
+    };
     const result = formToRaw(form, NOW);
     if (!result.ok) throw new Error(result.errors.join("\n"));
     expect(JSON.parse(result.raw.meta).variants[1]).toEqual({
@@ -171,5 +177,44 @@ describe("formFromSnippet", () => {
 describe("parseTags", () => {
   it("découpe, nettoie et dédoublonne", () => {
     expect(parseTags(" moteur, base ,, moteur,TON ")).toEqual(["moteur", "base", "TON"]);
+  });
+});
+
+describe("LIST généré depuis le LADDER", () => {
+  it("le recalcule à l'enregistrement, garde l'option et la mnémonique", () => {
+    const form = emptyForm();
+    Object.assign(form, { id: "gen-list", title: "LIST généré", blockType: "NETWORK" });
+    form.scl.enabled = false;
+    form.lad = {
+      enabled: true,
+      file: "main.lad",
+      content: '( NO %I0.0 | NO "KM1" ) & NC "Arret" -> COIL "KM1"',
+    };
+    form.stl = { enabled: false, file: "main.awl", content: "ancien", mnemonic: "EN", generated: true };
+    const result = formToRaw(form, NOW);
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+    expect(JSON.parse(result.raw.meta).variants[1]).toEqual({
+      lang: "STL",
+      file: "main.awl",
+      mnemonic: "EN",
+      generated: true,
+    });
+    expect(result.raw.files.find((f) => f.name === "main.awl")?.content).toBe(
+      'A(\nO     %I0.0\nO     "KM1"\n)\nAN    "Arret"\n=     "KM1"\n',
+    );
+    const parsed = parseRawSnippet(result.raw);
+    if (!parsed.ok) throw new Error(parsed.invalid.errors.join("\n"));
+    expect(formFromSnippet(parsed.snippet).stl.generated).toBe(true);
+  });
+
+  it("refuse d'enregistrer un LADDER que le LIST ne sait pas encore traduire", () => {
+    const form = emptyForm();
+    Object.assign(form, { id: "gen-list", title: "LIST généré", blockType: "NETWORK" });
+    form.scl.enabled = false;
+    form.lad = { enabled: true, file: "main.lad", content: 'NO "A" | TON "T" PT=T#1S -> COIL "Q"' };
+    form.stl = { enabled: true, file: "main.awl", content: "", mnemonic: "DE", generated: true };
+    const result = formToRaw(form, NOW);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.join()).toMatch(/décoche « Générer le LIST »/);
   });
 });

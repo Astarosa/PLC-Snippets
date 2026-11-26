@@ -79,6 +79,7 @@ export function snippetToRaw(snippet: Snippet, id: string = snippet.id): RawSnip
         lang,
         file,
         ...(lang === "SCL" ? { generated } : {}),
+        ...(lang === "STL" && generated ? { generated } : {}),
         ...(mnemonic ? { mnemonic } : {}),
       })),
     },

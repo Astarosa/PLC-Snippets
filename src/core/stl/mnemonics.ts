@@ -91,7 +91,13 @@ const ONLY = {
 const AREA_RE =
   /^(%?)(PEB|PEW|PED|PAB|PAW|PAD|PIB|PIW|PID|PQB|PQW|PQD|EB|EW|ED|AB|AW|AD|IB|IW|ID|QB|QW|QD|E|A|I|Q|Z|C)(\s*)(\d+(?:\.\d+)?)(.*)$/i;
 
+/** Bits d'état écrits en toutes lettres : bit de résultat binaire (BIE / BR). */
+const STATUS_BITS: [string, string][] = [["BIE", "BR"]];
+const STATUS_MAPS = { DE: table(STATUS_BITS, "DE"), EN: table(STATUS_BITS, "EN") };
+
 function convertOperand(operand: string, from: Mnemonic): string {
+  const status = STATUS_MAPS[from].get(operand.trim().toUpperCase());
+  if (status) return operand.replace(operand.trim(), status);
   const m = AREA_RE.exec(operand);
   if (!m) return operand; // "Mnémonique", #Locale, constante, M10.0, DB1.DBX0.0… inchangés
   const [, percent, area, space, address, rest] = m;
@@ -116,8 +122,8 @@ function splitLine(line: string): StlLine | null {
   return { indent, label, instruction, gap, operand, tail };
 }
 
-/** Ligne de paramètre d'un CALL : « IN := E 0.0 » */
-const PARAM_RE = /^(\s*[A-Za-z_]\w*\s*:=\s*)([^;,/]*?)(\s*[,;]?\s*(?:\/\/.*)?)$/;
+/** Ligne de paramètre d'un CALL : « IN := E 0.0 » (entrée) ou « Q => A 4.0 » (sortie). */
+const PARAM_RE = /^(\s*[A-Za-z_]\w*\s*(?::=|=>)\s*)([^;,/]*?)(\s*[,;]?\s*(?:\/\/.*)?)$/;
 
 export function convertStl(source: string, from: Mnemonic, to: Mnemonic): string {
   if (from === to) return source;

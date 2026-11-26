@@ -1,5 +1,6 @@
 import { formatLadError, parseLadder } from "../ladder/parse";
 import { ladderToScl } from "../ladder/scl";
+import { ladderToStl, type StlContext, type StlResult } from "../ladder/stl";
 import type { Mnemonic } from "../stl/mnemonics";
 import { CURRENT_VERSION } from "./migrate";
 import { type RawSnippet, slugify, toRawSnippet } from "./parse";
@@ -28,7 +29,7 @@ export interface SnippetForm {
   plcTags: PlcTag[];
   lad: VariantForm;
   scl: VariantForm & { generated: boolean };
-  stl: VariantForm & { mnemonic: Mnemonic };
+  stl: VariantForm & { mnemonic: Mnemonic; generated: boolean };
   readme: string;
   createdAt: string | null;
 }
@@ -70,7 +71,7 @@ export function emptyForm(): SnippetForm {
     plcTags: [],
     lad: { enabled: true, file: "main.lad", content: "" },
     scl: { enabled: true, file: "main.scl", content: "", generated: false },
-    stl: { enabled: false, file: "main.awl", content: "", mnemonic: "DE" },
+    stl: { enabled: false, file: "main.awl", content: "", mnemonic: "DE", generated: false },
     readme: "",
     createdAt: null,
   };
@@ -103,6 +104,7 @@ export function formFromSnippet(snippet: Snippet): SnippetForm {
       file: stl?.file ?? "main.awl",
       content: stl?.content ?? "",
       mnemonic: stl?.mnemonic ?? "DE",
+      generated: stl?.generated ?? false,
     },
     readme: snippet.readme ?? "",
     createdAt: meta.createdAt,
@@ -137,6 +139,23 @@ export function generateScl(ladSource: string): GeneratedScl {
 /** Le SCL n'est généré que si le LADDER est actif ; sinon on garde le SCL écrit à la main. */
 export const isSclGenerated = (form: SnippetForm) => form.lad.enabled && form.scl.generated;
 
+/** LIST calculé depuis le LADDER, dans la mnémonique choisie (aperçu et enregistrement). */
+export function generateStl(ladSource: string, ctx: StlContext): StlResult {
+  const parsed = parseLadder(ladSource);
+  if (!parsed.ok) return { ok: false, error: `LADDER, ${formatLadError(parsed.error)}` };
+  return ladderToStl(parsed.program, ctx);
+}
+
+/** Même règle que pour le SCL : généré seulement si le LADDER est actif. */
+export const isStlGenerated = (form: SnippetForm) => form.lad.enabled && form.stl.generated;
+
+/** Contexte de génération du LIST : mnémonique, interface et variables API du formulaire. */
+export const stlContextOf = (form: SnippetForm): StlContext => ({
+  mnemonic: form.stl.mnemonic,
+  iface: form.interface,
+  plcTags: form.plcTags,
+});
+
 /** Valide le formulaire et produit ce qui sera écrit sur le disque. */
 export function formToRaw(input: SnippetForm, now = new Date().toISOString()): FormResult {
   const errors: string[] = [];
@@ -146,11 +165,19 @@ export function formToRaw(input: SnippetForm, now = new Date().toISOString()): F
   if (form.lad.enabled && form.lad.content.trim()) {
     const parsed = parseLadder(form.lad.content);
     if (!parsed.ok) errors.push(`LADDER, ${formatLadError(parsed.error)}`);
-    else if (isSclGenerated(form)) {
-      form = { ...form, scl: { ...form.scl, enabled: true, content: ladderToScl(parsed.program) } };
+    else {
+      if (isSclGenerated(form)) {
+        form = { ...form, scl: { ...form.scl, enabled: true, content: ladderToScl(parsed.program) } };
+      }
+      if (isStlGenerated(form)) {
+        const stl = ladderToStl(parsed.program, stlContextOf(form));
+        if (stl.ok) form = { ...form, stl: { ...form.stl, enabled: true, content: stl.stl } };
+        else errors.push(`${stl.error} (ou décoche « Générer le LIST »).`);
+      }
     }
   }
   if (!form.lad.enabled && form.scl.generated) form = { ...form, scl: { ...form.scl, generated: false } };
+  if (!form.lad.enabled && form.stl.generated) form = { ...form, stl: { ...form.stl, generated: false } };
   if (!form.title.trim()) errors.push("Le titre est obligatoire.");
   if (!ID_PATTERN.test(form.id)) {
     errors.push("Identifiant invalide : minuscules, chiffres, « - » et « _ » uniquement (ex. tempo-defaut).");
@@ -222,7 +249,14 @@ export function formToRaw(input: SnippetForm, now = new Date().toISOString()): F
         ? [{ lang: "SCL" as const, file: form.scl.file, generated: form.scl.generated }]
         : []),
       ...(form.stl.enabled
-        ? [{ lang: "STL" as const, file: form.stl.file, mnemonic: form.stl.mnemonic }]
+        ? [
+            {
+              lang: "STL" as const,
+              file: form.stl.file,
+              mnemonic: form.stl.mnemonic,
+              ...(form.stl.generated ? { generated: true } : {}),
+            },
+          ]
         : []),
     ],
     createdAt: form.createdAt ?? now,

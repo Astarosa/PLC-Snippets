@@ -1,7 +1,7 @@
 # PLC Snippets
 
 Bibliothèque de snippets automate façon Gists : LADDER, SCL et LIST (STL / AWL),
-avec génération du SCL depuis le LADDER, conversion des mnémoniques LIST allemand ↔ anglais
+avec génération du SCL et du LIST depuis le LADDER, conversion des mnémoniques LIST allemand ↔ anglais
 et export en source externe TIA Portal (.scl / .awl).
 Application de bureau Windows (Tauri 2 + React 19).
 
@@ -86,6 +86,7 @@ src/
 ├── core/ladder/         ← DSL LADDER, sans dépendance
 │   ├── parse.ts           lexer + parseur, erreurs ligne / colonne
 │   ├── scl.ts             génération du SCL équivalent
+│   ├── stl.ts             génération du LIST équivalent (S7-300/400, S7-1500)
 │   ├── layout.ts          mise en page du schéma (formes en pixels, adresse de chaque élément)
 │   ├── print.ts           arbre → texte DSL (utilisé par l'éditeur visuel)
 │   └── edit.ts            opérations d'édition : insérer, brancher, remplacer, supprimer
@@ -180,7 +181,7 @@ Les zips sont contrôlés côté Rust (chemins hors archive refusés, taille pla
 |---|---|---|
 | Partager | PLC Snippets (.zip) | tout : variantes, notes, commentaires, tags |
 | TIA Portal | Source externe SCL (.scl) | SCL seul (généré depuis le LADDER si besoin) |
-| TIA Portal | Source externe LIST (.awl) | LIST seul, dans la mnémonique choisie |
+| TIA Portal | Source externe LIST (.awl) | LIST seul (généré depuis le LADDER si besoin), dans la mnémonique choisie |
 | TIA Portal | SimaticML (.xml), validé en V20 | LADDER : bloc LAD avec réseaux, titres, commentaires, interface |
 | Schneider / CODESYS | PLCopen XML | bientôt |
 

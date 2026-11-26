@@ -163,12 +163,13 @@ END_FUNCTION_BLOCK
     const adapter = exportAdapter("tia-awl");
     const result = adapter?.export?.(samples);
     if (result?.kind !== "text") throw new Error();
-    expect(result.content.match(/^FUNCTION/gm)).toHaveLength(1);
-    expect(result.warnings.filter((w) => w.includes("pas de variante LIST"))).toHaveLength(2);
+    // LIST écrit à la main + LIST généré depuis le LADDER ; le snippet SCL seul est signalé.
+    expect(result.content.match(/^FUNCTION/gm)).toHaveLength(2);
+    expect(result.warnings.filter((w) => w.includes("ni LIST ni LADDER"))).toHaveLength(1);
     expect(result.warnings.some((w) => w.includes("Mnémonique"))).toBe(true);
     expect(result.warnings.find((w) => w.startsWith("À créer dans TIA"))).toContain('"BP_Marche"');
     expect(tiaSclAdapter.canExport?.(byId("machine-etat-convoyeur"))).toBeNull();
-    expect(tiaAwlAdapter.canExport?.(byId("machine-etat-convoyeur"))).toBe("pas de LIST");
+    expect(tiaAwlAdapter.canExport?.(byId("machine-etat-convoyeur"))).toBe("ni LIST ni LADDER");
   });
 });
 

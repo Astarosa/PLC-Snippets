@@ -17,7 +17,7 @@ function stlSnippet(content: string): Snippet {
   Object.assign(form, { id: "list-test", title: "Test LIST", blockType: "FC" });
   form.lad.enabled = false;
   form.scl.enabled = false;
-  form.stl = { enabled: true, file: "main.awl", content, mnemonic: "DE" };
+  form.stl = { enabled: true, file: "main.awl", content, mnemonic: "DE", generated: false };
   form.interface.input = [{ name: "Marche", type: "Bool" }];
   const raw = formToRaw(form);
   if (!raw.ok) throw new Error(raw.errors.join());
@@ -59,7 +59,7 @@ describe("buildSource", () => {
   it("génère le SCL depuis le LADDER s'il n'y a pas de SCL", () => {
     const net = byId("surveillance-bourrage-comptage");
     const ladOnly = { ...net, variants: net.variants.filter((v) => v.lang === "LAD") };
-    expect(availableFormats(ladOnly)).toEqual(["SCL"]);
+    expect(availableFormats(ladOnly)).toEqual(["SCL", "STL"]);
     const result = buildSource(ladOnly, { format: "SCL", blockName: "FC_Bourrage" });
     if (!result.ok) throw new Error(result.error);
     expect(result.source).toContain(
@@ -122,5 +122,27 @@ describe("terminaison des lignes LIST", () => {
     expect(r.source).toMatch(/^\s*U\(;$/m);
     expect(r.source).toMatch(/^\s*\);$/m);
     expect(r.source).toMatch(/CALL "FB_X" , "DB_X" \($/m);
+  });
+});
+
+describe("LIST généré depuis le LADDER", () => {
+  it("exporte une source .awl avec les réseaux du LADDER, terminée pour TIA", () => {
+    const net = byId("surveillance-bourrage-comptage");
+    const ladOnly = { ...net, variants: net.variants.filter((v) => v.lang === "LAD") };
+    const result = buildSource(ladOnly, { format: "STL", blockName: "FC_Bourrage", mnemonic: "EN" });
+    if (!result.ok) throw new Error(result.error);
+    const lines = result.source.split("\n");
+    // Pas de réseau vide ajouté devant ceux du LADDER, en-têtes en colonne 0 et sans « ; ».
+    expect(lines.filter((l) => l === "NETWORK").length).toBeGreaterThan(1);
+    expect(lines[lines.indexOf("BEGIN") + 1]).toBe("NETWORK");
+    expect(lines.some((l) => /^(NETWORK|TITLE).*;$/.test(l))).toBe(false);
+    // CALL d'une instance : pas de « ; » avant les paramètres, un seul à la fin.
+    const call = lines.findIndex((l) => /\bCALL\b/.test(l));
+    expect(call).toBeGreaterThan(0);
+    expect(lines[call]).not.toMatch(/;$/);
+    expect(lines[call + 1]).toMatch(/^\s*\{(time|value)_type := '\w+'\}$/);
+    expect(lines.slice(call + 2).find((l) => /\);$/.test(l))).toBeDefined();
+    expect(lines.filter((l) => /=>|:=/.test(l) && /;$/.test(l) && !/\);$/.test(l))).toEqual([]);
+    expect(result.source).toMatch(/^\s+A\s+/m);
   });
 });

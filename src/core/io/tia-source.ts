@@ -1,5 +1,5 @@
 import { availableFormats, buildSource, defaultBlockName } from "../export/source";
-import { ladderRefusal, sclComesFromLadder } from "../ladder/check";
+import { ladderRefusal, sclComesFromLadder, stlComesFromLadder } from "../ladder/check";
 import { emptyInterface } from "../snippet/form";
 import { CURRENT_VERSION } from "../snippet/migrate";
 import { parseRawSnippet, slugify, toRawSnippet } from "../snippet/parse";
@@ -254,6 +254,8 @@ function tiaExport(lang: "SCL" | "STL") {
       if (result.ok) {
         sources.push(result.source);
         for (const g of result.globals) globals.add(g);
+        const prefix = snippets.length > 1 ? `${snippet.meta.title} : ` : "";
+        warnings.push(...result.warnings.map((w) => `${prefix}${w}`));
       } else warnings.push(`${snippet.meta.title} : ${result.error}`);
     }
     if (lang === "STL") {
@@ -298,6 +300,11 @@ export const tiaAwlAdapter: FormatAdapter = {
   keeps: "LIST seul",
   detect: (s) => s.files.some((f) => f.path.toLowerCase().endsWith(".awl") && hasBlock(f.content)),
   import: (s) => importTia(s, "STL"),
-  canExport: (snippet) => (availableFormats(snippet).includes("STL") ? null : "pas de LIST"),
+  canExport: (snippet) =>
+    !availableFormats(snippet).includes("STL")
+      ? "ni LIST ni LADDER"
+      : stlComesFromLadder(snippet)
+        ? ladderRefusal(snippet)
+        : null,
   export: tiaExport("STL"),
 };

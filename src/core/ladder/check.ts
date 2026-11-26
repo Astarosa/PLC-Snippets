@@ -631,6 +631,12 @@ export const sclComesFromLadder = (snippet: Snippet) => {
   return snippet.variants.some((v) => v.lang === "LAD") && (!scl || scl.generated);
 };
 
+/** Le LIST exporté vient-il du LADDER (généré, ou pas de LIST écrit à la main) ? */
+export const stlComesFromLadder = (snippet: Snippet) => {
+  const stl = snippet.variants.find((v) => v.lang === "STL");
+  return snippet.variants.some((v) => v.lang === "LAD") && (!stl || stl.generated);
+};
+
 /** Raison courte pour griser une entrée du menu Exporter (null = exportable). */
 export function ladderRefusal(snippet: Snippet): string | null {
   const errors = errorsOf(checkSnippetLadder(snippet));

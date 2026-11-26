@@ -21,6 +21,13 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 - Contrôles des variables API : adresse invalide ou de mauvaise taille, chevauchements, type qui ne
   correspond pas à l'usage dans le LADDER, instance de tempo déclarée comme variable.
 - Format des snippets v2 (champ `plcTags`) : les anciens snippets sont migrés à la lecture.
+- Génération du LIST (STL / AWL) depuis le LADDER, comme pour le SCL : case « Générer le LIST
+  automatiquement », dans la mnémonique choisie (allemand ou anglais). Contacts, branches, bobines,
+  fronts, comparateurs, MOVE / calculs et appels de temporisations / compteurs. Les types des
+  comparaisons et calculs (I / D / R) viennent de l'interface et des variables API ; un type inconnu
+  est signalé. Une boîte dans une branche parallèle n'est pas encore traduite (message clair).
+- Export « Source externe LIST (.awl) » possible pour un snippet qui n'a que du LADDER : le LIST est
+  généré à l'export, avec un réseau TIA par réseau LADDER.
 
 ## v0.3.4
 

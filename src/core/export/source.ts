@@ -1,5 +1,5 @@
 import { checkSnippetLadder, errorsOf, sclComesFromLadder, summarize } from "../ladder/check";
-import { generateScl } from "../snippet/form";
+import { generateScl, generateStl } from "../snippet/form";
 import type { Snippet, SnippetInterface, Variable } from "../snippet/schema";
 import { convertStl, type Mnemonic } from "../stl/mnemonics";
 import { globalNames } from "./globals";
@@ -29,6 +29,8 @@ export type ExportResult =
       fileName: string;
       /** Variables / DB / blocs globaux à créer dans le projet TIA avant l'import. */
       globals: string[];
+      /** Remarques de génération (ex. type supposé dans le LIST généré). */
+      warnings: string[];
     }
   | { ok: false; error: string };
 
@@ -44,12 +46,12 @@ export function defaultBlockName(snippet: Snippet): string {
   return `${prefix}_${toPascal(snippet.id)}`;
 }
 
-/** Formats exportables : SCL si on a du SCL ou du LADDER, LIST si on a du LIST. */
+/** Formats exportables : SCL et LIST si on a ce code ou du LADDER (dont ils sont alors générés). */
 export function availableFormats(snippet: Snippet): ExportFormat[] {
   const langs = snippet.variants.map((v) => v.lang);
   const formats: ExportFormat[] = [];
   if (langs.includes("SCL") || langs.includes("LAD")) formats.push("SCL");
-  if (langs.includes("STL")) formats.push("STL");
+  if (langs.includes("STL") || langs.includes("LAD")) formats.push("STL");
   return formats;
 }
 
@@ -86,18 +88,22 @@ function interfaceSource(iface: SnippetInterface, isFb: boolean): { lines: strin
 
 /** Termine par « ; » les lignes d'instruction LIST qui n'en ont pas (exigé dans une source .awl). */
 function terminateStl(source: string): string {
-  return source
-    .split("\n")
-    .map((line) => {
+  const lines = source.split("\n");
+  const nextCode = (i: number) => lines.slice(i + 1).find((l) => l.replace(/\/\/.*$/, "").trim()) ?? "";
+  return lines
+    .map((line, i) => {
       const code = line.replace(/\/\/.*$/, "").trimEnd();
-      // Pas de « ; » : ligne vide, déjà terminée, paramètre (« , » / « := »), étiquette,
-      // ou CALL dont les paramètres suivent (« CALL "FB" , "DB" ( »). « A( » et « U( » en prennent un.
-      const openCall = /\($/.test(code) && /\bCALL\b/i.test(code);
+      // Pas de « ; » : ligne vide, déjà terminée, paramètre (« , » / « := » / « => »), étiquette,
+      // en-tête de réseau, ou CALL dont la suite vient après (« ( », « { type } » ou ligne « ( »).
+      // « A( » et « U( » en prennent un.
+      const openCall = /\bCALL\b/i.test(code) && (/\($/.test(code) || /^\s*[({]/.test(nextCode(i)));
       if (
         !code.trim() ||
         /[;,]$/.test(code) ||
         openCall ||
-        /:=/.test(code) ||
+        /:=|=>/.test(code) ||
+        /^\s*\($/.test(code) ||
+        /^\s*(NETWORK|TITLE\b)/i.test(code) ||
         /^\s*[A-Za-z_]\w{0,3}:$/.test(code)
       ) {
         return line;
@@ -107,6 +113,14 @@ function terminateStl(source: string): string {
     })
     .join("\n");
 }
+
+/** Corps LIST indenté, sauf les en-têtes de réseau (en colonne 0 comme dans les sources TIA). */
+const indentStl = (text: string) =>
+  text
+    .replace(/\n+$/, "")
+    .split("\n")
+    .map((l) => (!l.trim() || /^\s*(NETWORK|TITLE\b)/i.test(l) ? l.trim() : `      ${l}`))
+    .join("\n");
 
 const indent = (text: string, prefix: string) =>
   text
@@ -122,6 +136,7 @@ export function buildSource(snippet: Snippet, options: ExportOptions): ExportRes
 
   const isFb = snippet.meta.blockType === "FB";
   const iface = interfaceSource(snippet.meta.interface, isFb);
+  const warnings: string[] = [];
   if (iface.error) return { ok: false, error: iface.error };
 
   let body: string;
@@ -142,9 +157,23 @@ export function buildSource(snippet: Snippet, options: ExportOptions): ExportRes
     } else return { ok: false, error: "Ce snippet n'a ni SCL ni LADDER à exporter en SCL." };
   } else {
     const stl = snippet.variants.find((v) => v.lang === "STL");
-    if (!stl) return { ok: false, error: "Ce snippet n'a pas de variante LIST." };
-    const target = options.mnemonic ?? stl.mnemonic ?? "DE";
-    body = terminateStl(convertStl(stl.content, stl.mnemonic ?? "DE", target));
+    const lad = snippet.variants.find((v) => v.lang === "LAD");
+    const target = options.mnemonic ?? stl?.mnemonic ?? "DE";
+    if (stl && !stl.generated) body = terminateStl(convertStl(stl.content, stl.mnemonic ?? "DE", target));
+    else if (lad) {
+      // LIST issu du LADDER : mêmes contrôles que le SCL, puis génération dans la mnémonique cible.
+      const errors = errorsOf(checkSnippetLadder(snippet));
+      if (errors.length > 0)
+        return { ok: false, error: `LADDER à corriger avant export — ${summarize(errors)}` };
+      const generated = generateStl(lad.content, {
+        mnemonic: target,
+        iface: snippet.meta.interface,
+        plcTags: snippet.meta.plcTags,
+      });
+      if (!generated.ok) return { ok: false, error: generated.error };
+      body = terminateStl(generated.stl);
+      warnings.push(...generated.warnings);
+    } else return { ok: false, error: "Ce snippet n'a ni LIST ni LADDER à exporter en LIST." };
   }
 
   const keyword = isFb ? "FUNCTION_BLOCK" : "FUNCTION";
@@ -153,7 +182,12 @@ export function buildSource(snippet: Snippet, options: ExportOptions): ExportRes
   const code =
     options.format === "SCL"
       ? ["BEGIN", indent(body, "\t")]
-      : ["BEGIN", "NETWORK", `TITLE = ${snippet.meta.title}`, indent(body, "      ")];
+      : [
+          "BEGIN",
+          // Le LIST généré depuis le LADDER porte déjà ses réseaux (« NETWORK / TITLE = »).
+          ...(/^\s*NETWORK\b/i.test(body.trimStart()) ? [] : ["NETWORK", `TITLE = ${snippet.meta.title}`]),
+          indentStl(body),
+        ];
 
   const source = [
     header,
@@ -172,5 +206,6 @@ export function buildSource(snippet: Snippet, options: ExportOptions): ExportRes
     source,
     fileName: `${name}.${options.format === "SCL" ? "scl" : "awl"}`,
     globals: globalNames(body, [name]),
+    warnings,
   };
 }
