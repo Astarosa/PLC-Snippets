@@ -13,7 +13,7 @@ import { useLibraryFilters } from "../../state/library-filters";
 import { useSettings } from "../../state/settings";
 import { openSnippetFolder } from "../../storage/folders";
 import { useCreateSnippet, useDeleteSnippet, useLibrary, useSnippet } from "../../storage/queries";
-import { LadderPreview } from "../ladder/LadderPreview";
+import { LadderView } from "../ladder/LadderView";
 import { useShortcut } from "../shortcuts";
 import { ExportMenu, type ExportStatus, StatusLine } from "../transfer/ExportMenu";
 import { ExportPanel } from "./ExportPanel";
@@ -188,11 +188,7 @@ export function SnippetPage() {
             </button>
           ))}
         </div>
-        {variant.lang === "LAD" && (
-          <div className="rounded-lg border border-slate-700 bg-slate-900/60">
-            <LadderPreview source={variant.content} />
-          </div>
-        )}
+        {variant.lang === "LAD" && <LadderView key={snippet.id} source={variant.content} />}
         {variant.lang === "STL" ? (
           <StlView
             key={snippet.id}

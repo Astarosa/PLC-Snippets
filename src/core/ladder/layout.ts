@@ -29,6 +29,14 @@ const RUNG_GAP = 16;
 export const NOTE_H = 15;
 
 /** Adresse de l'élément dessiné, pour la sélection et le dépôt dans l'éditeur visuel. */
+export interface WirePower {
+  key: string;
+  side: "in" | "out";
+}
+
+/** Clé d'un élément dans le flux de courant de la simulation. */
+export const powerKey = (rung: number, path: number[]) => `${rung}:${path.join(".")}`;
+
 export interface ShapeRef {
   rung: number;
   /** Chemin dans la condition (contacts, boîtes…). */
@@ -38,7 +46,15 @@ export interface ShapeRef {
 }
 
 export type Shape =
-  | { kind: "wire"; x1: number; y1: number; x2: number; y2: number }
+  | {
+      kind: "wire";
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      /** Élément dont le fil porte l'entrée ou la sortie (simulation) : clé « rung:chemin » ou « rung:oN ». */
+      power?: WirePower;
+    }
   | { kind: "rail"; x: number; y1: number; y2: number }
   | { kind: "contact"; x: number; y: number; variant: ContactKind; label: string; ref?: ShapeRef }
   | { kind: "coil"; x: number; y: number; variant: CoilKind; label: string; ref?: ShapeRef }
@@ -216,14 +232,29 @@ function placeShapes(
             y1: wireY(originY, r),
             x2: px(col + w),
             y2: wireY(originY, r),
+            power: { key: powerKey(rung, [...path, i]), side: "out" },
           });
         lastRow = r;
         r += s.h;
       }
       const y1 = wireY(originY, row);
       const y2 = wireY(originY, lastRow);
-      out.push({ kind: "wire", x1: px(col), y1, x2: px(col), y2 });
-      out.push({ kind: "wire", x1: px(col + w), y1, x2: px(col + w), y2 });
+      out.push({
+        kind: "wire",
+        x1: px(col),
+        y1,
+        x2: px(col),
+        y2,
+        power: { key: powerKey(rung, path), side: "in" },
+      });
+      out.push({
+        kind: "wire",
+        x1: px(col + w),
+        y1,
+        x2: px(col + w),
+        y2,
+        power: { key: powerKey(rung, path), side: "out" },
+      });
       return;
     }
   }
@@ -239,7 +270,14 @@ function placeRung(rung: Rung, index: number, originY: number, coilCol: number, 
   // Fil entre la fin de la condition et la colonne des bobines (s'il y en a).
   const y0 = wireY(originY, 0);
   if (rung.outputs.length > 0 && cond.w < coilCol)
-    out.push({ kind: "wire", x1: px(cond.w), y1: y0, x2: px(coilCol), y2: y0 });
+    out.push({
+      kind: "wire",
+      x1: px(cond.w),
+      y1: y0,
+      x2: px(coilCol),
+      y2: y0,
+      power: { key: powerKey(index, []), side: "out" },
+    });
 
   // Plusieurs bobines : branches parallèles à droite, comme dans TIA Portal.
   rung.outputs.forEach((o, i) => {
@@ -259,6 +297,7 @@ function placeRung(rung: Rung, index: number, originY: number, coilCol: number, 
       y1: y0,
       x2: px(coilCol),
       y2: wireY(originY, rung.outputs.length - 1),
+      power: { key: powerKey(index, []), side: "out" },
     });
   }
 

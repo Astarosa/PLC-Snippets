@@ -29,6 +29,10 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 - Modèles de snippet : « Nouveau snippet » (Ctrl+N) propose un point de départ — vide, marche / arrêt
   avec auto-maintien, temporisation TON, alarme avec acquittement, comptage sur front, seuils sur une
   mesure, FB moteur. Chaque modèle vient avec son LADDER, ses variables API et le SCL généré.
+- Simulation du LADDER : bouton « ▶ Simuler » sur la page d'un snippet. Le programme tourne en cycles,
+  le courant s'affiche sur le schéma (vert = passe, pointillés = coupé), les valeurs à côté des opérandes.
+  Les entrées se forcent au pupitre ou d'un clic sur un contact ; temporisations (TON, TOF, TP, TONR),
+  compteurs, fronts, comparateurs, MOVE et calculs sont simulés. Pause et réinitialisation.
 - Correction : les constantes en base 16 / 2 (`16#FF`, `2#1010`) sont acceptées dans le LADDER, comme
   l'annonçait la documentation.
 - Génération du LIST (STL / AWL) depuis le LADDER, comme pour le SCL : case « Générer le LIST

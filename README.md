@@ -260,6 +260,22 @@ Onglet LADDER, mode **Visuel** (le mode **Texte** reste disponible) :
 
 Le texte DSL reste la référence : chaque modification visuelle le réécrit dans un format standard.
 
+### Simulation
+
+Sur la page d'un snippet, **▶ Simuler** fait tourner le LADDER en cycles, comme la CPU : chaque réseau
+dans l'ordre, les bobines écrites tout de suite. Le courant s'affiche sur le schéma (vert = il passe,
+pointillés = coupé) et les valeurs numériques à côté des opérandes.
+
+- **Forcer une entrée** : clic sur le contact dans le schéma, ou dans le pupitre (*Entrées*). Les
+  valeurs numériques (comparateurs, calculs) se saisissent au pupitre.
+- **Sorties et mémoires** : bobines, bits de front, sorties de boîtes, et l'état des instances
+  (`"T".ET`, `"C".CV`…).
+- Temporisations en temps réel (TON, TOF, TP, TONR), compteurs (CTU, CTD, CTUD), fronts P / N,
+  comparateurs, MOVE, ADD / SUB / MUL / DIV. **Pause** fige le temps ; **Réinitialiser** remet tout à zéro.
+
+C'est une aide pour relire la logique, pas PLCSIM : pas de types stricts (débordements, Real / Int),
+pas de temps de cycle réel, ni de périphérie. À valider sous PLCSIM ou sur la machine.
+
 ## Bibliothèque, thème et raccourcis
 
 - **Nouveau snippet** (Ctrl+N) : partir de zéro ou d'un modèle (marche / arrêt, tempo, alarme, comptage,
