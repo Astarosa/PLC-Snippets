@@ -250,6 +250,11 @@ Onglet LADDER, mode **Visuel** (le mode **Texte** reste disponible) :
   variables API de l'élément à déclarer).
   Pas de guillemets à taper : `Moteur`, `Mot clé` ou `DB_Ligne.Marche` deviennent `"Moteur"`, `"Mot clé"`, `"DB_Ligne".Marche`.
 - **Problèmes** : onglet du panneau ; un clic sélectionne l'élément en cause dans le schéma.
+- **Annuler / rétablir** : Ctrl+Z / Ctrl+Y, ou les boutons ↶ ↷.
+- **Renommer une variable** : changer son nom dans l'onglet Interface ou Variables API, puis
+  *Renommer partout* pour le reporter dans le LADDER, le SCL et le LIST (pas dans les commentaires).
+- **Variables API depuis TIA** : *Importer .xlsx* dans l'onglet Variables API, avec une table exportée de TIA
+  (Variables API → Exporter). Les variables déjà déclarées récupèrent l'adresse et le commentaire manquants.
 - **Commentaires** de réseau (sous le titre) et de rung (dans le panneau) : écrits en `//` dans le fichier
   LADDER, rattachés à leur réseau ou rung, affichés sur le schéma et repris dans le SCL généré.
 

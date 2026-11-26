@@ -23,6 +23,9 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 - Renommer une variable partout : après avoir changé un nom dans l'interface ou les variables API,
   « Renommer partout » reporte le nouveau nom dans le LADDER, le SCL et le LIST écrits à la main
   (#locale, "globale", aussi devant un membre). Les commentaires ne sont pas modifiés ; Ctrl+Z annule.
+- Importer des variables API depuis un .xlsx exporté de TIA (Variables API → Exporter) ou par
+  PLC Snippets : les nouvelles variables sont ajoutées, celles déjà déclarées gardent leur type et
+  récupèrent l'adresse et le commentaire qui leur manquaient.
 - Génération du LIST (STL / AWL) depuis le LADDER, comme pour le SCL : case « Générer le LIST
   automatiquement », dans la mnémonique choisie (allemand ou anglais). Contacts, branches, bobines,
   fronts, comparateurs, MOVE / calculs et appels de temporisations / compteurs. Les types des

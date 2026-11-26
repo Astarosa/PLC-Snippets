@@ -225,7 +225,8 @@ pub fn read_import_source(path: &str) -> Result<ImportSource, String> {
         let is_zip = path
             .extension()
             .and_then(|e| e.to_str())
-            .is_some_and(|e| e.eq_ignore_ascii_case("zip"));
+            // Un classeur Excel (.xlsx) est un zip : on en lit les feuilles XML.
+            .is_some_and(|e| e.eq_ignore_ascii_case("zip") || e.eq_ignore_ascii_case("xlsx"));
         if is_zip {
             read_zip(path, &mut out)?;
             "zip"
@@ -324,6 +325,18 @@ mod tests {
         let source = read_import_source(zip_path.to_str().unwrap()).unwrap();
         assert_eq!(source.kind, "zip");
         assert_eq!(source.name, "pack.zip");
+        assert_eq!(source.files, files);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn xlsx_is_read_as_a_zip() {
+        let dir = temp("xlsx");
+        let path = dir.join("PLCTags.xlsx");
+        let files = vec![file("xl/worksheets/sheet1.xml", "<worksheet/>")];
+        write_export_zip(path.to_str().unwrap(), &files).unwrap();
+        let source = read_import_source(path.to_str().unwrap()).unwrap();
+        assert_eq!(source.kind, "zip");
         assert_eq!(source.files, files);
         fs::remove_dir_all(dir).unwrap();
     }

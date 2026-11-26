@@ -1,5 +1,6 @@
 import { addressProblem, type UsedGlobal } from "../../core/snippet/plc-tags";
 import type { PlcTag } from "../../core/snippet/schema";
+import { ImportTagsButton } from "./ImportTagsButton";
 import { nameFieldHandlers } from "./nameField";
 
 const input =
@@ -38,6 +39,7 @@ export function PlcTagsEditor({
         >
           + ajouter
         </button>
+        <ImportTagsButton value={value} onChange={onChange} />
         {undeclared.length > 0 && (
           <button
             type="button"

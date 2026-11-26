@@ -1,4 +1,10 @@
-import { addressProblem, assignAddresses, formatAddress, parseAddress } from "../snippet/plc-tags";
+import {
+  addressProblem,
+  assignAddresses,
+  canonicalAddress,
+  formatAddress,
+  parseAddress,
+} from "../snippet/plc-tags";
 import type { PlcTag, Snippet } from "../snippet/schema";
 import type { Mnemonic } from "../stl/mnemonics";
 import type { ExportPreferences, ExportResult, FormatAdapter, SourceFile } from "./types";
@@ -162,3 +168,167 @@ export const plcTagsXlsxAdapter: FormatAdapter = {
     };
   },
 };
+
+/* ---------------------------------------------------------------------------------------
+ * Import : table de variables exportée de TIA (Variables API → Exporter) ou par PLC Snippets.
+ * ------------------------------------------------------------------------------------- */
+
+const unescapeXml = (s: string) =>
+  s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(Number.parseInt(n, 16)))
+    .replace(/&amp;/g, "&");
+
+/** Texte d'un élément <si> ou <is> : concaténation des <t>, texte riche compris (pas les annotations phonétiques). */
+const runsText = (xml: string) =>
+  [...xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, "").matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>|<t(?:\s[^>]*)?\/>/g)]
+    .map((m) => unescapeXml(m[1] ?? ""))
+    .join("");
+
+function sharedStrings(xml: string | undefined): string[] {
+  if (!xml) return [];
+  return [...xml.matchAll(/<si>([\s\S]*?)<\/si>|<si\/>/g)].map((m) => runsText(m[1] ?? ""));
+}
+
+const columnIndex = (ref: string) => {
+  const letters = /^[A-Z]+/.exec(ref)?.[0] ?? "A";
+  return [...letters].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
+};
+
+/** Lignes d'une feuille (cellules vides comprises, d'après leur référence A1). */
+export function sheetRows(sheetXml: string, strings: string[]): string[][] {
+  const rows: string[][] = [];
+  for (const row of sheetXml.matchAll(/<row\b[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/g)) {
+    const cells: string[] = [];
+    let next = 0;
+    for (const c of (row[1] ?? "").matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      const attrs = c[1];
+      const body = c[2] ?? "";
+      const ref = /\br="([A-Z]+\d+)"/.exec(attrs)?.[1];
+      const col = ref ? columnIndex(ref) : next;
+      const type = /\bt="(\w+)"/.exec(attrs)?.[1];
+      const v = /<v>([\s\S]*?)<\/v>/.exec(body)?.[1];
+      let value = "";
+      if (type === "s") value = strings[Number(v)] ?? "";
+      else if (type === "inlineStr") value = runsText(/<is>([\s\S]*?)<\/is>/.exec(body)?.[1] ?? "");
+      else if (v !== undefined) value = unescapeXml(v);
+      cells[col] = value;
+      next = col + 1;
+    }
+    rows.push(Array.from(cells, (x) => x ?? ""));
+  }
+  return rows;
+}
+
+const norm = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+
+/** En-têtes reconnus (export TIA en anglais, ou en-têtes en français écrits à la main). */
+const COLUMNS = {
+  name: ["name", "nom"],
+  type: ["datatype", "typededonnees", "type"],
+  address: ["logicaladdress", "adresselogique", "adresse", "address"],
+  comment: ["comment", "commentaire"],
+} as const;
+
+export interface TagsImport {
+  tags: PlcTag[];
+  warnings: string[];
+}
+
+export class TagsImportError extends Error {}
+
+/**
+ * Variables API d'un classeur .xlsx (fichiers du zip). On prend la première feuille dont
+ * l'en-tête a les colonnes Name et Data Type (TIA : feuille « PLC Tags »).
+ */
+export function readTagsWorkbook(files: SourceFile[]): TagsImport {
+  const byPath = new Map(files.map((f) => [f.path.toLowerCase(), f.content]));
+  const strings = sharedStrings(byPath.get("xl/sharedstrings.xml"));
+  const sheets = files
+    .filter((f) => /^xl\/worksheets\/[^/]+\.xml$/i.test(f.path))
+    .sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }));
+  if (sheets.length === 0) throw new TagsImportError("Ce fichier n'est pas un classeur Excel (.xlsx).");
+
+  for (const sheet of sheets) {
+    const rows = sheetRows(sheet.content, strings);
+    const header = (rows[0] ?? []).map(norm);
+    const find = (names: readonly string[]) => header.findIndex((h) => names.includes(h));
+    const col = {
+      name: find(COLUMNS.name),
+      type: find(COLUMNS.type),
+      address: find(COLUMNS.address),
+      comment: find(COLUMNS.comment),
+    };
+    if (col.name < 0 || col.type < 0) continue;
+
+    const tags: PlcTag[] = [];
+    const warnings: string[] = [];
+    const seen = new Set<string>();
+    rows.slice(1).forEach((cells, i) => {
+      const cell = (c: number) => (c < 0 ? "" : (cells[c] ?? "").trim());
+      const name = cell(col.name);
+      const type = cell(col.type);
+      if (!name && !type) return;
+      const line = i + 2;
+      if (!name || !type) {
+        warnings.push(`Ligne ${line} ignorée : ${name ? "type" : "nom"} manquant.`);
+        return;
+      }
+      if (seen.has(name.toLowerCase())) {
+        warnings.push(`Ligne ${line} ignorée : "${name}" apparaît deux fois.`);
+        return;
+      }
+      seen.add(name.toLowerCase());
+      const address = cell(col.address);
+      const comment = cell(col.comment);
+      tags.push({
+        name,
+        type,
+        ...(address ? { address: canonicalAddress(address) } : {}),
+        ...(comment ? { comment } : {}),
+      });
+    });
+    return { tags, warnings };
+  }
+  throw new TagsImportError(
+    "Aucune feuille avec les colonnes « Name » et « Data Type » : exporte la table depuis TIA (Variables API → Exporter).",
+  );
+}
+
+/**
+ * Ajoute les variables importées à la table. Une variable déjà déclarée (même nom,
+ * casse ignorée comme dans TIA) garde son type ; son adresse et son commentaire vides
+ * sont complétés depuis l'import.
+ */
+export function mergeTags(
+  existing: PlcTag[],
+  incoming: PlcTag[],
+): { tags: PlcTag[]; added: number; completed: string[]; kept: string[] } {
+  const byName = new Map(incoming.map((t) => [t.name.toLowerCase(), t]));
+  const completed: string[] = [];
+  const kept: string[] = [];
+  const tags = existing.map((tag) => {
+    const other = byName.get(tag.name.toLowerCase());
+    if (!other) return tag;
+    byName.delete(tag.name.toLowerCase());
+    const address = tag.address?.trim() ? tag.address : other.address;
+    const comment = tag.comment?.trim() ? tag.comment : other.comment;
+    if (address === tag.address && comment === tag.comment) {
+      kept.push(tag.name);
+      return tag;
+    }
+    completed.push(tag.name);
+    return { ...tag, ...(address ? { address } : {}), ...(comment ? { comment } : {}) };
+  });
+  const added = [...byName.values()];
+  return { tags: [...tags, ...added], added: added.length, completed, kept };
+}

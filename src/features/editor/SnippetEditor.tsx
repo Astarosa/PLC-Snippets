@@ -139,9 +139,9 @@ export function SnippetEditor({
     count: number;
   } | null>(null);
   // Le SCL / LIST générés suivent le LADDER : seules les variantes écrites à la main comptent.
-  const codes = [form.lad, !sclGenerated && form.scl, !stlGenerated && form.stl]
-    .filter((v) => v && v.enabled)
-    .map((v) => (v as { content: string }).content);
+  const codes = [form.lad, ...(sclGenerated ? [] : [form.scl]), ...(stlGenerated ? [] : [form.stl])]
+    .filter((v) => v.enabled)
+    .map((v) => v.content);
   const offerRename = (scope: VariableScope) => (from: string, to: string) => {
     const name = to.trim();
     const count = codes.reduce((n, text) => n + countInText(text, scope, from), 0);
