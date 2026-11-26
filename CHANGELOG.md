@@ -3,7 +3,7 @@
 Chaque version publiée a sa section `## vX.Y.Z`. Le workflow « Publier une version » en reprend le
 texte pour la release GitHub et pour la notification de mise à jour dans l'application.
 
-## v0.3.5
+## v0.4.0
 
 - Détection des erreurs dans le LADDER avant l'export vers TIA. Les erreurs (opérande « ??? »,
   instance manquante, variable locale non déclarée, type incompatible, DB d'instance qui porte le
