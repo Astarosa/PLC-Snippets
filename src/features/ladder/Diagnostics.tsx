@@ -36,7 +36,7 @@ export function DiagnosticsPanel({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-3 px-3 py-1.5 text-left"
+        className="flex w-full flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-1.5 text-left"
       >
         {errors.length > 0 && (
           <span className="font-semibold text-red-300">
@@ -48,12 +48,13 @@ export function DiagnosticsPanel({
             {ICON.warning} {warnings.length} avertissement{warnings.length > 1 ? "s" : ""}
           </span>
         )}
-        <span className="text-slate-500">
+        <span className="ml-auto text-slate-400">{open ? "▴" : "▾"}</span>
+        {/* Sur sa propre ligne : tient dans le panneau étroit de l'éditeur. */}
+        <span className="w-full text-slate-400">
           {errors.length > 0
             ? "Export TIA bloqué tant que les erreurs restent."
             : "Export possible, mais vérifie la logique."}
         </span>
-        <span className="ml-auto text-slate-500">{open ? "▴" : "▾"}</span>
       </button>
       {open && (
         <ul className="max-h-56 space-y-0.5 overflow-y-auto border-t border-slate-800 px-1 py-1">
@@ -61,26 +62,29 @@ export function DiagnosticsPanel({
             const clickable = !!onPick && d.network !== undefined;
             return (
               // biome-ignore lint/suspicious/noArrayIndexKey: liste recalculée à chaque modification
-              <li key={i} className="flex items-start gap-1">
-                <button
-                  type="button"
-                  disabled={!clickable}
-                  onClick={() => onPick?.(d)}
-                  className={`flex min-w-0 flex-1 gap-2 rounded px-2 py-0.5 text-left ${clickable ? "hover:bg-slate-800" : "cursor-default"}`}
-                >
-                  <span className={COLOR[d.severity]}>{ICON[d.severity]}</span>
-                  <span className="w-32 shrink-0 text-slate-500">{locate(d)}</span>
-                  <span className="text-slate-200">{d.message}</span>
-                </button>
-                {d.fix === "declare-tags" && onFix && (
+              <li key={i} className="flex gap-2 rounded px-2 py-1">
+                <span className={COLOR[d.severity]}>{ICON[d.severity]}</span>
+                {/* Emplacement au-dessus du message, correction en dessous : rien ne se chevauche, même étroit. */}
+                <div className="min-w-0 flex-1 space-y-1">
                   <button
                     type="button"
-                    onClick={() => onFix(d)}
-                    className="shrink-0 rounded border border-amber-700 bg-amber-950/50 px-2 py-0.5 text-amber-200 hover:bg-amber-900/60"
+                    disabled={!clickable}
+                    onClick={() => onPick?.(d)}
+                    className={`block w-full rounded text-left ${clickable ? "hover:text-sky-300" : "cursor-default"}`}
                   >
-                    Tout déclarer
+                    <span className="block text-[11px] text-slate-400">{locate(d)}</span>
+                    <span className="text-slate-200">{d.message}</span>
                   </button>
-                )}
+                  {d.fix === "declare-tags" && onFix && (
+                    <button
+                      type="button"
+                      onClick={() => onFix(d)}
+                      className="rounded border border-amber-700 bg-amber-950/50 px-2 py-0.5 text-amber-200 hover:bg-amber-900/60"
+                    >
+                      Tout déclarer
+                    </button>
+                  )}
+                </div>
               </li>
             );
           })}
