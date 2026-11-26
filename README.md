@@ -228,7 +228,13 @@ Mnémoniques, variables locales, mémentos (`M`), DB et constantes sont laissés
 
 ## Éditeur LADDER visuel
 
-Dans l'éditeur d'un snippet, section LADDER, onglet **Visuel** (l'onglet **Texte** reste disponible) :
+L'éditeur d'un snippet a deux zones : à gauche le **programme** (onglets LADDER / SCL / LIST, chacun
+avec son interrupteur « Généré depuis le LADDER »), à droite un **panneau** (Élément / Interface /
+Variables API / Problèmes). La barre du haut reste visible : **Infos** (titre, tags, type de bloc,
+CPU, notes), état des contrôles, **Enregistrer** (Ctrl+S). La bibliothèque se replie en rail pendant
+l'édition.
+
+Onglet LADDER, mode **Visuel** (le mode **Texte** reste disponible) :
 
 - **Ajouter** : glisser un symbole de la palette vers une zone bleue, ou **cliquer** le symbole puis la zone.
   - petites zones à gauche / à droite d'un élément : insertion **en série**
@@ -240,12 +246,30 @@ Dans l'éditeur d'un snippet, section LADDER, onglet **Visuel** (l'onglet **Text
   Boutons *Supprimer le rung* et *Supprimer le réseau* pour le reste.
 - **Branche parallèle autour de plusieurs éléments** : clic sur le premier, **Maj + clic** sur le dernier,
   puis *Branche parallèle autour* (ou glisser un symbole dans la zone sous la sélection).
-- **Modifier** : clic sur un élément, puis le bandeau du haut (opérande, NO/NC, paramètres de boîte).
+- **Modifier** : clic sur un élément, puis l'onglet **Élément** du panneau (opérande, NO/NC, paramètres de boîte,
+  variables API de l'élément à déclarer).
   Pas de guillemets à taper : `Moteur`, `Mot clé` ou `DB_Ligne.Marche` deviennent `"Moteur"`, `"Mot clé"`, `"DB_Ligne".Marche`.
-- **Commentaires** de réseau (sous le titre) et de rung (dans le bandeau) : écrits en `//` dans le fichier
+- **Problèmes** : onglet du panneau ; un clic sélectionne l'élément en cause dans le schéma.
+- **Commentaires** de réseau (sous le titre) et de rung (dans le panneau) : écrits en `//` dans le fichier
   LADDER, rattachés à leur réseau ou rung, affichés sur le schéma et repris dans le SCL généré.
 
 Le texte DSL reste la référence : chaque modification visuelle le réécrit dans un format standard.
+
+## Bibliothèque, thème et raccourcis
+
+- **Filtres** sous la recherche : type de bloc, langage, tags (cliquer un tag sur la page d'un snippet filtre
+  la bibliothèque). Un ⛔ signale les snippets dont le LADDER bloquerait l'export TIA.
+- **Accueil** : derniers modifiés, snippets à vérifier avant export, raccourcis.
+- Page d'un snippet, menu **⋯** : Dupliquer, Copier le LADDER, Copier le chemin du dossier, Supprimer.
+- **Thème clair / sombre** : bouton soleil / lune en haut de la bibliothèque (mémorisé).
+
+| Raccourci | Action |
+|---|---|
+| Ctrl+N | Nouveau snippet |
+| Ctrl+F | Rechercher dans la bibliothèque |
+| Ctrl+S | Enregistrer (éditeur) |
+| Ctrl+D | Dupliquer le snippet ouvert |
+| Suppr / Échap | Effacer / désélectionner dans le schéma LADDER |
 
 ## Ordre des snippets
 

@@ -4,27 +4,52 @@ import {
   createRoute,
   createRouter,
   Outlet,
+  useRouterState,
 } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { EditSnippetPage, NewSnippetPage } from "./features/editor/pages";
+import { Rail } from "./features/library/Rail";
 import { Sidebar } from "./features/library/Sidebar";
 import { Welcome } from "./features/library/Welcome";
+import { useShortcuts } from "./features/shortcuts";
 import { SnippetPage } from "./features/snippet/SnippetPage";
 import { FileDropTarget, ImportDialog } from "./features/transfer/ImportDialog";
 import { UpdateNotice } from "./features/update/UpdateNotice";
+import { useLibraryFilters } from "./state/library-filters";
 
-const rootRoute = createRootRoute({
-  component: () => (
+function RootLayout() {
+  // Pendant l'édition, la bibliothèque se replie en rail pour laisser la place à l'éditeur.
+  const editing = useRouterState({
+    select: (s) => s.matches.some((m) => m.routeId === "/new" || m.routeId === "/snippets/$snippetId/edit"),
+  });
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (editing) setExpanded(false);
+  }, [editing]);
+  useShortcuts();
+  // Ctrl+F pendant l'édition : déplie la bibliothèque pour montrer la recherche.
+  const searchFocus = useLibraryFilters((s) => s.searchFocus);
+  useEffect(() => {
+    if (searchFocus > 0) setExpanded(true);
+  }, [searchFocus]);
+  return (
     <div className="flex h-screen bg-slate-950 text-slate-200">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
+      {editing && !expanded ? (
+        <Rail onExpand={() => setExpanded(true)} />
+      ) : (
+        <Sidebar onCollapse={editing ? () => setExpanded(false) : undefined} />
+      )}
+      <main id="main" className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
       <FileDropTarget />
       <ImportDialog />
       <UpdateNotice />
     </div>
-  ),
-});
+  );
+}
+
+const rootRoute = createRootRoute({ component: RootLayout });
 
 const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: "/", component: Welcome });
 

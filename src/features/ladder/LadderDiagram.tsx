@@ -10,10 +10,12 @@ import {
   type Shape,
 } from "../../core/ladder/layout";
 
-const WIRE = "#94a3b8"; // slate-400
-const SYMBOL = "#34d399"; // emerald-400
-const LABEL = "#e2e8f0"; // slate-200
-const PIN = "#7dd3fc"; // sky-300
+// Couleurs du thème (variables Tailwind) : le schéma suit le mode clair / sombre.
+const WIRE = "var(--color-slate-400)";
+const SYMBOL = "var(--color-emerald-400)";
+const LABEL = "var(--color-slate-200)";
+const PIN = "var(--color-sky-300)";
+const BOX_FILL = "var(--color-slate-900)";
 const MONO = "Consolas, ui-monospace, monospace";
 const MAX_LABEL = 16;
 
@@ -64,13 +66,13 @@ export function ShapeView({ shape }: { shape: Shape }) {
       return <line x1={shape.x} y1={shape.y1} x2={shape.x} y2={shape.y2} stroke={WIRE} strokeWidth={3} />;
     case "title":
       return (
-        <text x={shape.x} y={shape.y} fill="#7dd3fc" fontSize={12} fontWeight={600}>
+        <text x={shape.x} y={shape.y} fill={PIN} fontSize={12} fontWeight={600}>
           {shape.text}
         </text>
       );
     case "note":
       return (
-        <text x={shape.x} y={shape.y} fill="#94a3b8" fontSize={11} fontStyle="italic">
+        <text x={shape.x} y={shape.y} fill={WIRE} fontSize={11} fontStyle="italic">
           {`// ${shape.text}`}
         </text>
       );
@@ -145,7 +147,7 @@ export function ShapeView({ shape }: { shape: Shape }) {
             width={right - left}
             height={bottom - top}
             rx={3}
-            fill="#0f172a"
+            fill={BOX_FILL}
             stroke={SYMBOL}
             strokeWidth={1.5}
           />

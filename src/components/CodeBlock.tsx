@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
 import { useMemo } from "react";
 import { lad, scl, stl } from "../features/editor/languages";
+import { useSettings } from "../state/settings";
 import { CopyButton } from "./CopyButton";
 
 /** Affichage du code en lecture seule, avec la même coloration que l'éditeur. */
@@ -15,6 +16,7 @@ export function CodeBlock({
   title: string;
   language: "scl" | "lad" | "stl";
 }) {
+  const theme = useSettings((s) => s.theme);
   const extensions = useMemo(
     () => [{ scl, lad, stl }[language](), EditorView.editable.of(false)],
     [language],
@@ -29,7 +31,7 @@ export function CodeBlock({
         <CodeMirror
           value={code.replace(/\n$/, "")}
           extensions={extensions}
-          theme={oneDark}
+          theme={theme === "light" ? "light" : oneDark}
           readOnly
           basicSetup={{ foldGutter: false, highlightActiveLine: false, highlightActiveLineGutter: false }}
         />

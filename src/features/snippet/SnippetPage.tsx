@@ -1,12 +1,19 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
 import { Badge } from "../../components/Badge";
 import { CodeBlock } from "../../components/CodeBlock";
+import { MoreMenu } from "../../components/MoreMenu";
 import type { ExportFormat } from "../../core/export/source";
+import { duplicateSnippet } from "../../core/snippet/duplicate";
+import { relativeDate } from "../../core/snippet/filter";
 import { LANG_LABELS, type Lang } from "../../core/snippet/schema";
-import { useDeleteSnippet, useSnippet } from "../../storage/queries";
+import { useLibraryFilters } from "../../state/library-filters";
+import { useSettings } from "../../state/settings";
+import { useCreateSnippet, useDeleteSnippet, useLibrary, useSnippet } from "../../storage/queries";
 import { LadderPreview } from "../ladder/LadderPreview";
+import { useShortcut } from "../shortcuts";
 import { ExportMenu, type ExportStatus, StatusLine } from "../transfer/ExportMenu";
 import { ExportPanel } from "./ExportPanel";
 import { InterfaceTable } from "./InterfaceTable";
@@ -21,6 +28,31 @@ export function SnippetPage() {
   const deleteSnippet = useDeleteSnippet();
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
   const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
+  const { data: library } = useLibrary();
+  const libraryPath = useSettings((s) => s.libraryPath);
+  const createSnippet = useCreateSnippet();
+  const showTag = useLibraryFilters((s) => s.showTag);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Copie complète sous un nouvel identifiant, ouverte directement en modification.
+  const duplicate = () => {
+    if (!snippet || createSnippet.isPending) return;
+    const raw = duplicateSnippet(snippet, library?.snippets.map((s) => s.id) ?? []);
+    createSnippet.mutate(raw, {
+      onSuccess: () => navigate({ to: "/snippets/$snippetId/edit", params: { snippetId: raw.id } }),
+    });
+  };
+  useShortcut("duplicate", duplicate);
+
+  const copy = async (text: string, done: string) => {
+    try {
+      await writeText(text);
+      setNotice(done);
+    } catch {
+      setNotice("Échec de la copie.");
+    }
+    setTimeout(() => setNotice(null), 2000);
+  };
 
   // Revient sur le premier onglet disponible quand on change de snippet.
   useEffect(() => {
@@ -32,6 +64,9 @@ export function SnippetPage() {
 
   const { meta } = snippet;
   const variant = snippet.variants.find((v) => v.lang === tab) ?? snippet.variants[0];
+  const lad = snippet.variants.find((v) => v.lang === "LAD");
+  const sep = libraryPath?.includes("\\") ? "\\" : "/";
+  const folderPath = `${libraryPath ?? ""}${sep}${snippet.id}`;
 
   const onDelete = async () => {
     const confirmed = await ask(
@@ -71,29 +106,50 @@ export function SnippetPage() {
             >
               Modifier
             </Link>
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={deleteSnippet.isPending}
-              className="rounded-md border border-red-900 px-3 py-1 text-sm text-red-300 hover:bg-red-950"
-            >
-              Supprimer
-            </button>
+            <MoreMenu
+              items={[
+                { label: "Dupliquer", hint: "Ctrl+D", onSelect: duplicate },
+                ...(lad
+                  ? [{ label: "Copier le LADDER", onSelect: () => copy(lad.content, "LADDER copié.") }]
+                  : []),
+                {
+                  label: "Copier le chemin du dossier",
+                  onSelect: () => copy(folderPath, "Chemin du dossier copié."),
+                },
+                { label: "Supprimer…", danger: true, separated: true, onSelect: onDelete },
+              ]}
+            />
           </div>
         </div>
         {deleteSnippet.error && <p className="text-sm text-red-400">{String(deleteSnippet.error)}</p>}
+        {createSnippet.error && (
+          <p className="text-sm text-red-400">Duplication impossible : {String(createSnippet.error)}</p>
+        )}
+        {notice && <p className="text-sm text-emerald-300">{notice}</p>}
         {meta.summary && <p className="text-sm text-slate-400">{meta.summary}</p>}
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Badge>{meta.blockType}</Badge>
           {meta.cpuFamilies.map((c) => (
             <Badge key={c}>{c}</Badge>
           ))}
           {meta.tiaVersion && <Badge>TIA {meta.tiaVersion}</Badge>}
           {meta.tags.map((t) => (
-            <Badge key={t} tone="tag">
+            <button
+              key={t}
+              type="button"
+              onClick={() => showTag(t)}
+              title="Filtrer la bibliothèque sur ce tag"
+              className="rounded border border-amber-800 bg-amber-950/60 px-1.5 py-0.5 text-[11px] font-medium text-amber-300 hover:underline"
+            >
               #{t}
-            </Badge>
+            </button>
           ))}
+          <span
+            className="ml-auto text-xs text-slate-400"
+            title={new Date(meta.updatedAt).toLocaleString("fr-FR")}
+          >
+            Modifié {relativeDate(meta.updatedAt).replace(/^(\d)/, "le $1")}
+          </span>
         </div>
       </header>
 
@@ -146,8 +202,10 @@ export function SnippetPage() {
         )}
       </section>
 
-      <InterfaceTable iface={meta.interface} />
-      <PlcTagsTable tags={meta.plcTags} />
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(380px,1fr))] gap-6">
+        <InterfaceTable iface={meta.interface} />
+        <PlcTagsTable tags={meta.plcTags} />
+      </div>
 
       {snippet.readme && (
         <section>
@@ -158,7 +216,7 @@ export function SnippetPage() {
         </section>
       )}
 
-      <footer className="text-[11px] text-slate-600">
+      <footer className="text-[11px] text-slate-500">
         Modifié le {new Date(meta.updatedAt).toLocaleString("fr-FR")} · dossier <code>{snippet.id}/</code>
       </footer>
     </article>

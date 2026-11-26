@@ -1,13 +1,24 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "../../components/Badge";
+import { CollapseIcon } from "../../components/icons";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { APP_VERSION } from "../../core/app-version";
+import { checkSnippetLadder, errorsOf } from "../../core/ladder/check";
+import { filterSnippets, hasFilters, tagCounts } from "../../core/snippet/filter";
 import { moveId } from "../../core/snippet/order";
-import { matchesQuery } from "../../core/snippet/parse";
-import { LANG_SHORT, type Lang } from "../../core/snippet/schema";
+import { BLOCK_TYPES, LANG_SHORT, LANGS, type Lang } from "../../core/snippet/schema";
 
 const LANG_TONE = { LAD: "lad", SCL: "scl", STL: "stl" } as const satisfies Record<Lang, string>;
+const LANG_CHIP: Record<Lang, string> = {
+  LAD: "text-emerald-300",
+  SCL: "text-sky-300",
+  STL: "text-violet-300",
+};
+/** Tags visibles avant « +N ». */
+const TAGS_SHOWN = 4;
 
+import { useLibraryFilters } from "../../state/library-filters";
 import { useSettings } from "../../state/settings";
 import { useLibrary, useReorder } from "../../storage/queries";
 import { ExportMenu, type ExportStatus, StatusLine } from "../transfer/ExportMenu";
@@ -21,16 +32,57 @@ interface ListDrag {
   insertAt: number | null;
 }
 
-export function Sidebar() {
+/** Pastille de filtre : cochée = fond bleu. */
+function Chip({
+  on,
+  onClick,
+  children,
+  tone = "text-slate-300",
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  tone?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      className={`rounded-full border px-2 py-0.5 text-xs ${on ? "border-sky-600 bg-sky-950 text-sky-100" : `border-slate-700 hover:border-slate-500 ${tone}`}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function Sidebar({ onCollapse }: { onCollapse?: () => void } = {}) {
   const libraryPath = useSettings((s) => s.libraryPath);
   const chooseLibrary = useSettings((s) => s.chooseLibrary);
   const { data, isLoading, error, refetch, isFetching } = useLibrary();
-  const [query, setQuery] = useState("");
+  const filters = useLibraryFilters();
+  const { query, setQuery } = filters;
+  const [allTags, setAllTags] = useState(false);
+  const search = useRef<HTMLInputElement>(null);
+  // Ctrl+F (ou la loupe du rail) : focus sur la recherche, dès que le champ est affiché.
+  const { searchFocusPending, searchFocused } = filters;
+  useEffect(() => {
+    if (!searchFocusPending || !search.current) return;
+    search.current.focus();
+    searchFocused();
+  }, [searchFocusPending, searchFocused]);
 
-  const visible = useMemo(() => (data?.snippets ?? []).filter((s) => matchesQuery(s, query)), [data, query]);
+  const visible = useMemo(() => filterSnippets(data?.snippets ?? [], filters), [data, filters]);
+  const tags = useMemo(() => tagCounts(data?.snippets ?? []), [data]);
+  /** Nombre d'erreurs LADDER par snippet (bloquantes pour l'export TIA). */
+  const errorCount = useMemo(
+    () => new Map((data?.snippets ?? []).map((s) => [s.id, errorsOf(checkSnippetLadder(s)).length])),
+    [data],
+  );
+  const filtered = hasFilters(filters);
   const reorder = useReorder();
   const [drag, setDrag] = useState<ListDrag | null>(null);
-  const canReorder = query.trim() === "";
+  const canReorder = !filtered;
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
@@ -81,12 +133,26 @@ export function Sidebar() {
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-slate-800 bg-slate-900">
       <header className="space-y-2 border-b border-slate-800 p-3">
-        <h1 className="flex items-baseline gap-2 text-sm font-semibold tracking-wide text-slate-100">
-          PLC Snippets
-          <span className="font-mono text-[11px] font-normal tracking-normal text-slate-500">
-            {APP_VERSION}
-          </span>
-        </h1>
+        <div className="flex items-center gap-1">
+          <h1 className="flex items-baseline gap-2 text-sm font-semibold tracking-wide text-slate-100">
+            PLC Snippets
+            <span className="font-mono text-[11px] font-normal tracking-normal text-slate-500">
+              {APP_VERSION}
+            </span>
+          </h1>
+          <ThemeToggle className="ml-auto" />
+          {onCollapse && (
+            <button
+              type="button"
+              aria-label="Replier la bibliothèque"
+              title="Replier la bibliothèque"
+              onClick={onCollapse}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+            >
+              <CollapseIcon />
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <span className="truncate font-mono text-[11px] text-slate-500" title={libraryPath ?? ""}>
             {libraryPath ?? "Aucune bibliothèque"}
@@ -119,14 +185,92 @@ export function Sidebar() {
           </Link>
           <ImportButton disabled={!libraryPath} />
         </div>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Rechercher (titre, tag, code)…"
-          disabled={!libraryPath}
-          className="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-600 focus:outline-none"
-        />
+        <div className="relative">
+          <input
+            ref={search}
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher (titre, tag, code)…"
+            aria-label="Rechercher"
+            disabled={!libraryPath}
+            className="w-full rounded-md border border-slate-700 bg-slate-950 py-1.5 pr-14 pl-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-600 focus:outline-none"
+          />
+          <kbd className="pointer-events-none absolute top-1.5 right-2 rounded bg-slate-800 px-1.5 font-mono text-[11px] text-slate-400">
+            Ctrl+F
+          </kbd>
+        </div>
+        {(data?.snippets.length ?? 0) > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex items-start gap-1">
+              <span className="w-16 shrink-0 pt-0.5 text-[11px] text-slate-400">Bloc</span>
+              <div className="flex flex-1 flex-wrap gap-1">
+                {BLOCK_TYPES.map((b) => (
+                  <Chip
+                    key={b}
+                    on={filters.blockTypes.includes(b)}
+                    onClick={() => filters.toggleBlockType(b)}
+                  >
+                    {b}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-start gap-1">
+              <span className="w-16 shrink-0 pt-0.5 text-[11px] text-slate-400">Langage</span>
+              <div className="flex flex-1 flex-wrap gap-1">
+                {LANGS.map((l) => (
+                  <Chip
+                    key={l}
+                    on={filters.langs.includes(l)}
+                    onClick={() => filters.toggleLang(l)}
+                    tone={LANG_CHIP[l]}
+                  >
+                    {LANG_SHORT[l]}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+            {tags.length > 0 && (
+              <div className="flex items-start gap-1">
+                <span className="w-16 shrink-0 pt-0.5 text-[11px] text-slate-400">Tags</span>
+                <div className="flex flex-1 flex-wrap gap-1">
+                  {(allTags ? tags : tags.slice(0, TAGS_SHOWN)).map(({ tag }) => (
+                    <Chip
+                      key={tag}
+                      on={filters.tags.some((t) => t.toLowerCase() === tag.toLowerCase())}
+                      onClick={() => filters.toggleTag(tag)}
+                      tone="text-amber-300"
+                    >
+                      #{tag}
+                    </Chip>
+                  ))}
+                  {tags.length > TAGS_SHOWN && (
+                    <button
+                      type="button"
+                      onClick={() => setAllTags(!allTags)}
+                      className="px-1 text-xs text-sky-400 hover:underline"
+                    >
+                      {allTags ? "moins" : `+${tags.length - TAGS_SHOWN}`}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            {filtered && (
+              <div className="flex items-center text-xs text-slate-400">
+                {visible.length} résultat{visible.length > 1 ? "s" : ""}
+                <button
+                  type="button"
+                  onClick={filters.clear}
+                  className="ml-auto text-sky-400 hover:underline"
+                >
+                  Tout effacer
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
       <nav className="flex-1 overflow-y-auto p-2">
@@ -158,7 +302,7 @@ export function Sidebar() {
                   <button
                     type="button"
                     aria-label={`Déplacer ${s.meta.title}`}
-                    title={canReorder ? "Glisser pour réordonner" : "Vide la recherche pour réordonner"}
+                    title={canReorder ? "Glisser pour réordonner" : "Efface les filtres pour réordonner"}
                     disabled={!canReorder}
                     onPointerDown={(e) => {
                       if (!canReorder) return;
@@ -184,6 +328,14 @@ export function Sidebar() {
                       </Badge>
                     ))}
                     <Badge>{s.meta.blockType}</Badge>
+                    {(errorCount.get(s.id) ?? 0) > 0 && (
+                      <span
+                        className="ml-auto text-[11px] text-red-300"
+                        title="Erreurs LADDER : l'export TIA est bloqué"
+                      >
+                        ⛔ {errorCount.get(s.id)}
+                      </span>
+                    )}
                   </div>
                 </Link>
               </li>
@@ -194,8 +346,8 @@ export function Sidebar() {
           <p className="p-2 text-xs text-red-400">Ordre non enregistré : {String(reorder.error)}</p>
         )}
 
-        {data && query && visible.length === 0 && (
-          <p className="p-2 text-sm text-slate-500">Aucun résultat pour « {query} ».</p>
+        {data && filtered && visible.length === 0 && (
+          <p className="p-2 text-sm text-slate-500">Aucun snippet ne correspond aux filtres.</p>
         )}
 
         {data && data.invalid.length > 0 && (

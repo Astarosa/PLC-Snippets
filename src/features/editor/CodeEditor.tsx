@@ -2,6 +2,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
 import CodeMirror from "@uiw/react-codemirror";
 import { useMemo } from "react";
+import { useSettings } from "../../state/settings";
 import { lad, scl, stl } from "./languages";
 
 const LANGUAGES = { scl, lad, stl, markdown: () => markdown() };
@@ -20,13 +21,14 @@ export function CodeEditor({
   placeholder?: string;
 }) {
   const extensions = useMemo(() => [LANGUAGES[language]()], [language]);
+  const theme = useSettings((st) => st.theme);
   return (
     <div className="overflow-hidden rounded-lg border border-slate-700 text-[13px]">
       <CodeMirror
         value={value}
         onChange={onChange}
         extensions={extensions}
-        theme={oneDark}
+        theme={theme === "light" ? "light" : oneDark}
         minHeight={minHeight}
         placeholder={placeholder}
         basicSetup={{ foldGutter: false, highlightActiveLine: true, tabSize: 4 }}

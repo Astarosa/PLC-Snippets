@@ -18,10 +18,13 @@ export function InterfaceEditor({
   blockType,
   value,
   onChange,
+  compact = false,
 }: {
   blockType: BlockType;
   value: SnippetInterface;
   onChange: (value: SnippetInterface) => void;
+  /** Panneau étroit : chaque variable sur deux lignes (nom / type, puis valeur / commentaire). */
+  compact?: boolean;
 }) {
   const keys = interfaceSectionsFor(blockType);
   if (keys.length === 0) {
@@ -49,7 +52,7 @@ export function InterfaceEditor({
             </button>
           </div>
           {value[key].length > 0 && (
-            <div className="grid grid-cols-[1fr_1fr_1fr_2fr_auto] gap-1.5">
+            <div className={compact ? "space-y-1.5" : "grid grid-cols-[1fr_1fr_1fr_2fr_auto] gap-1.5"}>
               {value[key].map((row, i) => {
                 const set = (patch: Partial<Variable>) =>
                   update(
@@ -57,8 +60,15 @@ export function InterfaceEditor({
                     value[key].map((r, j) => (j === i ? { ...r, ...patch } : r)),
                   );
                 return (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: lignes éditées en place, sans identifiant
-                  <div key={i} className="contents">
+                  <div
+                    // biome-ignore lint/suspicious/noArrayIndexKey: lignes éditées en place, sans identifiant
+                    key={i}
+                    className={
+                      compact
+                        ? "relative grid grid-cols-2 gap-1 rounded-md border border-slate-800 p-1.5 pr-8"
+                        : "contents"
+                    }
+                  >
                     <input
                       className={input}
                       placeholder="Nom"
@@ -92,7 +102,8 @@ export function InterfaceEditor({
                           value[key].filter((_, j) => j !== i),
                         )
                       }
-                      className="px-2 text-slate-500 hover:text-red-400"
+                      aria-label="Supprimer la ligne"
+                      className={`px-2 text-slate-500 hover:text-red-400 ${compact ? "absolute top-1.5 right-0" : ""}`}
                     >
                       ✕
                     </button>

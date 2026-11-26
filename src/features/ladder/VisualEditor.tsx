@@ -1,5 +1,6 @@
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Expr, LadProgram, Output } from "../../core/ladder/ast";
 import { type CheckContext, checkLadder, type Diagnostic } from "../../core/ladder/check";
 import {
@@ -166,6 +167,11 @@ export function VisualEditor({
   onChange,
   check,
   tags,
+  panel,
+  onSelectionChange,
+  selectRequest,
+  hideDiagnostics = false,
+  stickyClass = "top-0",
 }: {
   source: string;
   onChange: (source: string) => void;
@@ -173,6 +179,19 @@ export function VisualEditor({
   check?: CheckContext;
   /** Table des variables API : déclaration à la volée depuis l'élément sélectionné. */
   tags?: { value: PlcTag[]; onChange: (tags: PlcTag[]) => void };
+  /**
+   * Conteneur où afficher les propriétés de la sélection (panneau « Élément » de l'éditeur).
+   * Sans lui, elles restent dans un bandeau au-dessus des réseaux.
+   */
+  panel?: HTMLElement | null;
+  /** Appelé quand l'utilisateur sélectionne quelque chose (ou un outil de la palette). */
+  onSelectionChange?: (active: boolean) => void;
+  /** Sélection demandée de l'extérieur (liste des problèmes) ; nonce change à chaque demande. */
+  selectRequest?: { ref: ElementRef; nonce: number } | null;
+  /** La liste des problèmes est affichée ailleurs (onglet « Problèmes » de l'éditeur). */
+  hideDiagnostics?: boolean;
+  /** Position collante de la palette (sous la barre de l'éditeur). */
+  stickyClass?: string;
 }) {
   const parsed = useMemo(() => (source.trim() ? parseLadder(source) : null), [source]);
   const program = useMemo<LadProgram | null>(() => {
@@ -213,6 +232,14 @@ export function VisualEditor({
 
   const tool = drag?.active ? drag.payload : armed;
 
+  // Le panneau « Élément » de l'éditeur s'ouvre dès qu'on sélectionne ou prend un outil.
+  const active = !!(selected || range || tool);
+  const selectionChanged = useRef(onSelectionChange);
+  selectionChanged.current = onSelectionChange;
+  useEffect(() => {
+    if (active) selectionChanged.current?.(true);
+  }, [active]);
+
   const select = (ref: ElementRef | null) => {
     setSelected(ref);
     setRange(null);
@@ -235,6 +262,14 @@ export function VisualEditor({
     },
     [program, commit],
   );
+
+  // Sélection demandée depuis la liste des problèmes : on sélectionne et on montre le réseau.
+  useEffect(() => {
+    if (!selectRequest) return;
+    setSelected(selectRequest.ref);
+    setRange(null);
+    sectionRefs.current[selectRequest.ref.network]?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [selectRequest]);
 
   // Glisser à la souris (pointer events : fiable dans toutes les webviews).
   useEffect(() => {
@@ -337,115 +372,120 @@ export function VisualEditor({
     if (ok) commit(removeNetwork(program, n));
   };
 
-  return (
-    <div className="grid grid-cols-[150px_1fr] gap-3">
-      {/* Palette */}
-      {/* Palette : reste visible au défilement, comme le bandeau des propriétés */}
-      <aside className="sticky top-0 z-10 max-h-[calc(100vh-1rem)] select-none space-y-3 self-start overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-lg shadow-slate-950">
-        {PALETTE.map((group) => (
-          <div key={group.title}>
-            <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              {group.title}
-            </p>
-            <div className="grid grid-cols-2 gap-1">
-              {group.entries.map((entry) => {
-                const isArmed = armed?.label === entry.label;
-                return (
-                  <button
-                    key={entry.label}
-                    type="button"
-                    title={`${entry.hint} — glisse-le dans le réseau, ou clique puis clique sur une zone`}
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      setDrag({
-                        payload: { src: "palette", item: entry.item, label: entry.label },
-                        startX: e.clientX,
-                        startY: e.clientY,
-                        x: e.clientX,
-                        y: e.clientY,
-                        active: false,
-                      });
-                    }}
-                    className={`cursor-grab rounded border px-1 py-1 text-center active:cursor-grabbing ${
-                      isArmed
-                        ? "border-sky-500 bg-sky-950"
-                        : "border-slate-700 bg-slate-950 hover:border-slate-500"
-                    }`}
-                  >
-                    <div className="font-mono text-[11px] text-emerald-400">{entry.glyph}</div>
-                    <div className="text-[10px] text-slate-300">{entry.label}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </aside>
+  const help = (
+    <div className="space-y-1 text-xs text-slate-400">
+      <p>Glisse un symbole de la palette, ou un élément déjà posé, vers une zone bleue.</p>
+      <p>Clic : sélectionner · Maj + clic : sélectionner une plage (pour une branche parallèle autour).</p>
+      <p>Suppr ou glisser vers la corbeille : effacer · Échap : désélectionner.</p>
+    </div>
+  );
 
-      <div className="min-w-0 space-y-3">
-        {/* Bandeau : aide, consigne de dépôt, ou propriétés de la sélection */}
-        <aside className="sticky top-0 z-10 min-h-[100px] rounded-lg border border-slate-700 bg-slate-900 p-3 shadow-lg shadow-slate-950">
-          {tool ? (
-            <div className="flex items-start gap-3">
-              <p className="flex-1 text-xs text-sky-200">
-                {coilTool
-                  ? "Dépose la bobine dans la colonne des bobines d'un rung"
-                  : "Dépose avant / après un élément (série), en dessous (parallèle)"}
-                {range && !coilTool ? ", sous la sélection (branche autour)" : ""}
-                {tool.src === "palette" ? ", ou sur « nouveau rung »." : "."} Échap pour annuler.
-              </p>
-              {tool.src === "move" && (
-                <div
-                  {...zoneProps({ t: "trash" })}
-                  className={`rounded border border-dashed px-4 py-3 text-xs ${
-                    sameZone(hover, { t: "trash" })
-                      ? "border-red-400 bg-red-900/60 text-red-100"
-                      : "border-red-800 bg-red-950/40 text-red-300"
+  /** Propriétés de la sélection, consigne de dépôt, ou aide. */
+  const details = tool ? (
+    <div className="flex flex-wrap items-start gap-3">
+      <p className="min-w-48 flex-1 text-xs text-sky-200">
+        {coilTool
+          ? "Dépose la bobine dans la colonne des bobines d'un rung"
+          : "Dépose avant / après un élément (série), en dessous (parallèle)"}
+        {range && !coilTool ? ", sous la sélection (branche autour)" : ""}
+        {tool.src === "palette" ? ", ou sur « nouveau rung »." : "."} Échap pour annuler.
+      </p>
+      {tool.src === "move" && (
+        <div
+          {...zoneProps({ t: "trash" })}
+          className={`rounded border border-dashed px-4 py-3 text-xs ${
+            sameZone(hover, { t: "trash" })
+              ? "border-red-400 bg-red-900/60 text-red-100"
+              : "border-red-800 bg-red-950/40 text-red-300"
+          }`}
+        >
+          Corbeille
+        </div>
+      )}
+    </div>
+  ) : range ? (
+    <RangeInspector
+      program={program}
+      range={range}
+      onChange={(next, focus) => commit(next, focus)}
+      onClear={() => select(null)}
+    />
+  ) : selected ? (
+    <>
+      <Inspector
+        key={JSON.stringify(selected)}
+        program={program}
+        selected={selected}
+        // Modifier un élément ne change pas son adresse : il reste sélectionné.
+        onChange={(next) => onChange(printLadder(next))}
+        onReplaceSelection={(next, focus) => commit(next, focus)}
+        onDeleted={() => select(null)}
+      />
+      <ElementDiagnostics diagnostics={byElement.get(JSON.stringify(selected)) ?? []} />
+      {tags && selectedElement && (
+        <TagQuickEdit globals={elementGlobals(selectedElement)} tags={tags.value} onChange={tags.onChange} />
+      )}
+    </>
+  ) : (
+    help
+  );
+
+  return (
+    <div className="space-y-3">
+      {/* Palette : barre d'outils collante au-dessus des réseaux */}
+      <div
+        role="toolbar"
+        aria-label="Symboles LADDER"
+        className={`sticky ${stickyClass} z-10 flex select-none flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-lg shadow-slate-950/40`}
+      >
+        {PALETTE.map((group) => (
+          <div key={group.title} className="flex items-center gap-1">
+            <span className="mr-1 text-[11px] text-slate-400">{group.title}</span>
+            {group.entries.map((entry) => {
+              const isArmed = armed?.label === entry.label;
+              // Contacts et bobines : le symbole ; boîtes : leur nom (TON, CTU, MOVE…).
+              const text = entry.glyph.startsWith("[") ? entry.label : entry.glyph.replace(/^─|─$/g, "");
+              return (
+                <button
+                  key={entry.label}
+                  type="button"
+                  aria-label={`${entry.label} : ${entry.hint}`}
+                  title={`${entry.label} — ${entry.hint}. Glisse-le dans le réseau, ou clique puis clique sur une zone.`}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    setDrag({
+                      payload: { src: "palette", item: entry.item, label: entry.label },
+                      startX: e.clientX,
+                      startY: e.clientY,
+                      x: e.clientX,
+                      y: e.clientY,
+                      active: false,
+                    });
+                  }}
+                  className={`h-8 min-w-10 cursor-grab rounded border px-1.5 font-mono text-xs text-emerald-400 active:cursor-grabbing ${
+                    isArmed
+                      ? "border-sky-500 bg-sky-950"
+                      : "border-slate-700 bg-slate-950 hover:border-slate-500"
                   }`}
                 >
-                  🗑 Corbeille
-                </div>
-              )}
-            </div>
-          ) : range ? (
-            <RangeInspector
-              program={program}
-              range={range}
-              onChange={(next, focus) => commit(next, focus)}
-              onClear={() => select(null)}
-            />
-          ) : selected ? (
-            <>
-              <Inspector
-                key={JSON.stringify(selected)}
-                program={program}
-                selected={selected}
-                // Modifier un élément ne change pas son adresse : il reste sélectionné.
-                onChange={(next) => onChange(printLadder(next))}
-                onReplaceSelection={(next, focus) => commit(next, focus)}
-                onDeleted={() => select(null)}
-              />
-              <ElementDiagnostics diagnostics={byElement.get(JSON.stringify(selected)) ?? []} />
-              {tags && selectedElement && (
-                <TagQuickEdit
-                  globals={elementGlobals(selectedElement)}
-                  tags={tags.value}
-                  onChange={tags.onChange}
-                />
-              )}
-            </>
-          ) : (
-            <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500">
-              <p>Glisse un symbole de la palette, ou un élément déjà posé, vers une zone bleue.</p>
-              <p>
-                Clic : sélectionner · Maj + clic : sélectionner une plage (pour une branche parallèle autour).
-              </p>
-              <p>Suppr ou glisser vers la corbeille : effacer.</p>
-            </div>
-          )}
-        </aside>
+                  {text}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
 
-        {check && program.networks.length > 0 && (
+      <div className="min-w-0 space-y-3">
+        {panel ? (
+          createPortal(details, panel)
+        ) : (
+          <aside className="min-h-[100px] rounded-lg border border-slate-700 bg-slate-900 p-3">
+            {details}
+          </aside>
+        )}
+
+        {check && !hideDiagnostics && program.networks.length > 0 && (
           <DiagnosticsPanel
             diagnostics={diagnostics}
             onFix={() => {
@@ -530,7 +570,7 @@ export function VisualEditor({
                   if (e.target.value !== (network.comment ?? ""))
                     commit(setNetworkComment(program, n, e.target.value));
                 }}
-                className="mb-1 w-full resize-y rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-slate-400 italic placeholder:text-slate-600 hover:border-slate-700 focus:border-sky-600 focus:outline-none"
+                className="mb-1 w-full resize-y rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-slate-400 italic placeholder:text-slate-500 hover:border-slate-700 focus:border-sky-600 focus:outline-none"
               />
               <div className="overflow-x-auto">
                 <svg

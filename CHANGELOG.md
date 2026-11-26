@@ -5,6 +5,16 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 
 ## v0.4.0
 
+- Nouvelle interface. L'éditeur a deux zones : le programme à gauche (onglets LADDER / SCL / LIST,
+  palette en barre d'outils) et un panneau à droite (élément sélectionné, interface, variables API,
+  problèmes). La barre du haut reste visible avec les infos du snippet, l'état des contrôles et
+  « Enregistrer ». La bibliothèque se replie pendant l'édition.
+- Thème clair, en plus du thème sombre (bouton soleil / lune, mémorisé).
+- Bibliothèque : filtres par type de bloc, langage et tag ; ⛔ sur les snippets dont le LADDER
+  bloquerait l'export. Accueil avec les derniers modifiés et les snippets à vérifier avant export.
+- Page d'un snippet : « Dupliquer » et les actions secondaires dans un menu ⋯, tags cliquables pour
+  filtrer la bibliothèque, interface et variables API côte à côte.
+- Raccourcis clavier : Ctrl+N (nouveau), Ctrl+F (rechercher), Ctrl+S (enregistrer), Ctrl+D (dupliquer).
 - Détection des erreurs dans le LADDER avant l'export vers TIA. Les erreurs (opérande « ??? »,
   instance manquante, variable locale non déclarée, type incompatible, DB d'instance qui porte le
   nom d'une variable API…) sont entourées en rouge et bloquent l'export SimaticML et SCL. Les
