@@ -10,6 +10,13 @@ const base = {
   strokeLinejoin: "round" as const,
 };
 
+export const HomeIcon = () => (
+  <svg {...base} aria-hidden="true">
+    <path d="M3 10.5 12 3l9 7.5" />
+    <path d="M5 9v11h14V9" />
+    <path d="M10 20v-6h4v6" />
+  </svg>
+);
 export const MenuIcon = () => (
   <svg {...base} aria-hidden="true">
     <path d="M4 6h16M4 12h16M4 18h16" />

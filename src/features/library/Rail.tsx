@@ -1,4 +1,5 @@
-import { MenuIcon, SearchIcon } from "../../components/icons";
+import { Link } from "@tanstack/react-router";
+import { HomeIcon, MenuIcon, SearchIcon } from "../../components/icons";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { useLibraryFilters } from "../../state/library-filters";
 
@@ -24,6 +25,9 @@ export function Rail({ onExpand }: { onExpand: () => void }) {
       >
         <MenuIcon />
       </button>
+      <Link to="/" aria-label="Accueil" title="Accueil" className={button}>
+        <HomeIcon />
+      </Link>
       <button
         type="button"
         aria-label="Rechercher dans la bibliothèque"

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "../../components/Badge";
-import { CollapseIcon } from "../../components/icons";
+import { CollapseIcon, HomeIcon } from "../../components/icons";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { APP_VERSION } from "../../core/app-version";
 import { checkSnippetLadder, errorsOf } from "../../core/ladder/check";
@@ -134,12 +134,30 @@ export function Sidebar({ onCollapse }: { onCollapse?: () => void } = {}) {
     <aside className="flex w-80 shrink-0 flex-col border-r border-slate-800 bg-slate-900">
       <header className="space-y-2 border-b border-slate-800 p-3">
         <div className="flex items-center gap-1">
-          <h1 className="flex items-baseline gap-2 text-sm font-semibold tracking-wide text-slate-100">
-            PLC Snippets
-            <span className="font-mono text-[11px] font-normal tracking-normal text-slate-500">
-              {APP_VERSION}
-            </span>
+          <h1 className="text-sm font-semibold tracking-wide text-slate-100">
+            {/* Le titre ramène à l'accueil (derniers modifiés, à vérifier, raccourcis). */}
+            <Link
+              to="/"
+              title="Accueil"
+              className="flex items-baseline gap-2 rounded px-1 -mx-1 hover:bg-slate-800"
+              activeOptions={{ exact: true }}
+              activeProps={{ "aria-current": "page" }}
+            >
+              PLC Snippets
+              <span className="font-mono text-[11px] font-normal tracking-normal text-slate-500">
+                {APP_VERSION}
+              </span>
+            </Link>
           </h1>
+          <Link
+            to="/"
+            aria-label="Accueil"
+            title="Accueil"
+            activeOptions={{ exact: true }}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-slate-100 [&.active]:text-sky-300"
+          >
+            <HomeIcon />
+          </Link>
           <ThemeToggle className="ml-auto" />
           {onCollapse && (
             <button
