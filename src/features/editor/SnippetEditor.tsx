@@ -15,6 +15,7 @@ import {
   suggestId,
 } from "../../core/snippet/form";
 import { undeclaredGlobals } from "../../core/snippet/plc-tags";
+import { countInText, isValidName, renameInText, type VariableScope } from "../../core/snippet/rename";
 import { BLOCK_TYPES, CPU_FAMILIES, type PlcTag } from "../../core/snippet/schema";
 import { convertStl, detectMnemonic } from "../../core/stl/mnemonics";
 import { DiagnosticsPanel } from "../ladder/Diagnostics";
@@ -129,6 +130,35 @@ export function SnippetEditor({
   };
   useShortcut("undo", () => stepLad(undo));
   useShortcut("redo", () => stepLad(redo));
+
+  // Nom d'une variable modifié : proposer de le reporter dans le code (LADDER, SCL, LIST).
+  const [renameOffer, setRenameOffer] = useState<{
+    scope: VariableScope;
+    from: string;
+    to: string;
+    count: number;
+  } | null>(null);
+  // Le SCL / LIST générés suivent le LADDER : seules les variantes écrites à la main comptent.
+  const codes = [form.lad, !sclGenerated && form.scl, !stlGenerated && form.stl]
+    .filter((v) => v && v.enabled)
+    .map((v) => (v as { content: string }).content);
+  const offerRename = (scope: VariableScope) => (from: string, to: string) => {
+    const name = to.trim();
+    const count = codes.reduce((n, text) => n + countInText(text, scope, from), 0);
+    setRenameOffer(count > 0 && isValidName(scope, name) ? { scope, from, to: name, count } : null);
+  };
+  const applyRename = () => {
+    if (!renameOffer) return;
+    const { scope, from, to } = renameOffer;
+    const rename = (text: string) => renameInText(text, scope, from, to).text;
+    changeLad(rename(form.lad.content), null);
+    setForm((f) => ({
+      ...f,
+      scl: { ...f.scl, content: rename(f.scl.content) },
+      stl: { ...f.stl, content: rename(f.stl.content) },
+    }));
+    setRenameOffer(null);
+  };
 
   const showProblem = (ref: ElementRef | undefined) => {
     if (!ref) return;
@@ -610,11 +640,19 @@ export function SnippetEditor({
                 Sélectionne un élément dans le schéma (onglet LADDER, mode Visuel) pour voir ses propriétés.
               </p>
             )}
+            {renameOffer && (right === "interface" || right === "tags") && (
+              <RenameBanner
+                offer={renameOffer}
+                onApply={applyRename}
+                onDismiss={() => setRenameOffer(null)}
+              />
+            )}
             {right === "interface" && (
               <InterfaceEditor
                 blockType={form.blockType}
                 value={form.interface}
                 onChange={(v) => set("interface", v)}
+                onRenamed={offerRename("local")}
                 compact
               />
             )}
@@ -627,6 +665,7 @@ export function SnippetEditor({
                   value={form.plcTags}
                   onChange={(v) => set("plcTags", v)}
                   undeclared={undeclared}
+                  onRenamed={offerRename("global")}
                   compact
                 />
               </div>
@@ -742,5 +781,45 @@ function Warning({ children }: { children: ReactNode }) {
     <p className="rounded-lg border border-amber-900 bg-amber-950/40 p-3 font-mono text-sm text-amber-300">
       {children}
     </p>
+  );
+}
+
+function RenameBanner({
+  offer,
+  onApply,
+  onDismiss,
+}: {
+  offer: { scope: VariableScope; from: string; to: string; count: number };
+  onApply: () => void;
+  onDismiss: () => void;
+}) {
+  const show = (name: string) => (offer.scope === "local" ? `#${name}` : `"${name}"`);
+  return (
+    <div
+      role="status"
+      className="mb-3 space-y-2 rounded-md border border-sky-800 bg-sky-950/40 p-2.5 text-xs"
+    >
+      <p className="text-sky-100">
+        <code className="font-mono">{show(offer.from)}</code> est utilisé {offer.count} fois dans le code.
+        Renommer en <code className="font-mono">{show(offer.to)}</code> partout (LADDER, SCL, LIST) ?
+      </p>
+      <p className="text-slate-400">Les commentaires ne sont pas modifiés.</p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onApply}
+          className="rounded bg-sky-600 px-2.5 py-1 font-medium text-white hover:bg-sky-500"
+        >
+          Renommer partout
+        </button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="rounded border border-slate-700 px-2.5 py-1 text-slate-300 hover:bg-slate-800"
+        >
+          Laisser le code
+        </button>
+      </div>
+    </div>
   );
 }

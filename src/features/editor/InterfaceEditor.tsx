@@ -5,6 +5,7 @@ import {
   type SnippetInterface,
   type Variable,
 } from "../../core/snippet/schema";
+import { nameFieldHandlers } from "./nameField";
 
 const input =
   "w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 font-mono text-[13px] text-slate-100 focus:border-sky-600 focus:outline-none";
@@ -19,12 +20,15 @@ export function InterfaceEditor({
   value,
   onChange,
   compact = false,
+  onRenamed,
 }: {
   blockType: BlockType;
   value: SnippetInterface;
   onChange: (value: SnippetInterface) => void;
   /** Panneau étroit : chaque variable sur deux lignes (nom / type, puis valeur / commentaire). */
   compact?: boolean;
+  /** Nom d'une variable modifié (à la sortie du champ). */
+  onRenamed?: (from: string, to: string) => void;
 }) {
   const keys = interfaceSectionsFor(blockType);
   if (keys.length === 0) {
@@ -74,6 +78,7 @@ export function InterfaceEditor({
                       placeholder="Nom"
                       value={row.name}
                       onChange={(e) => set({ name: e.target.value })}
+                      {...nameFieldHandlers(onRenamed)}
                     />
                     <input
                       className={input}

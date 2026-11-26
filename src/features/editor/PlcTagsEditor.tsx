@@ -1,5 +1,6 @@
 import { addressProblem, type UsedGlobal } from "../../core/snippet/plc-tags";
 import type { PlcTag } from "../../core/snippet/schema";
+import { nameFieldHandlers } from "./nameField";
 
 const input =
   "w-full rounded border bg-slate-950 px-2 py-1 font-mono text-[13px] text-slate-100 focus:border-sky-600 focus:outline-none";
@@ -13,6 +14,7 @@ export function PlcTagsEditor({
   onChange,
   undeclared,
   compact = false,
+  onRenamed,
 }: {
   value: PlcTag[];
   onChange: (tags: PlcTag[]) => void;
@@ -20,6 +22,8 @@ export function PlcTagsEditor({
   undeclared: UsedGlobal[];
   /** Panneau étroit : chaque variable sur deux lignes. */
   compact?: boolean;
+  /** Nom d'une variable modifié (à la sortie du champ). */
+  onRenamed?: (from: string, to: string) => void;
 }) {
   const set = (i: number, patch: Partial<PlcTag>) =>
     onChange(value.map((t, j) => (j === i ? { ...t, ...patch } : t)));
@@ -67,6 +71,7 @@ export function PlcTagsEditor({
                     placeholder="Nom"
                     value={tag.name}
                     onChange={(e) => set(i, { name: e.target.value })}
+                    {...nameFieldHandlers(onRenamed)}
                   />
                   <input
                     className={`${input} border-slate-700`}
@@ -121,6 +126,7 @@ export function PlcTagsEditor({
                     placeholder="Nom"
                     value={tag.name}
                     onChange={(e) => set(i, { name: e.target.value })}
+                    {...nameFieldHandlers(onRenamed)}
                   />
                   <input
                     className={`${input} border-slate-700`}
