@@ -3,7 +3,7 @@
 Chaque version publiée a sa section `## vX.Y.Z`. Le workflow « Publier une version » en reprend le
 texte pour la release GitHub et pour la notification de mise à jour dans l'application.
 
-## v0.4.0
+## v0.5.0
 
 - Nouvelle interface. L'éditeur a deux zones : le programme à gauche (onglets LADDER / SCL / LIST,
   palette en barre d'outils) et un panneau à droite (élément sélectionné, interface, variables API,
@@ -15,6 +15,17 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 - Page d'un snippet : « Dupliquer », « Ouvrir le dossier » et les autres actions secondaires dans un
   menu ⋯, tags cliquables pour filtrer la bibliothèque, interface et variables API côte à côte.
 - Raccourcis clavier : Ctrl+N (nouveau), Ctrl+F (rechercher), Ctrl+S (enregistrer), Ctrl+D (dupliquer).
+- Retour à l'accueil : titre « PLC Snippets » et icône maison, aussi dans la bibliothèque repliée.
+- Génération du LIST (STL / AWL) depuis le LADDER, comme pour le SCL : case « Générer le LIST
+  automatiquement », dans la mnémonique choisie (allemand ou anglais). Contacts, branches, bobines,
+  fronts, comparateurs, MOVE / calculs et appels de temporisations / compteurs. Les types des
+  comparaisons et calculs (I / D / R) viennent de l'interface et des variables API ; un type inconnu
+  est signalé. Une boîte dans une branche parallèle n'est pas encore traduite (message clair).
+- Export « Source externe LIST (.awl) » possible pour un snippet qui n'a que du LADDER : le LIST est
+  généré à l'export, avec un réseau TIA par réseau LADDER.
+
+## v0.4.0
+
 - Détection des erreurs dans le LADDER avant l'export vers TIA. Les erreurs (opérande « ??? »,
   instance manquante, variable locale non déclarée, type incompatible, DB d'instance qui porte le
   nom d'une variable API…) sont entourées en rouge et bloquent l'export SimaticML et SCL. Les
@@ -31,13 +42,6 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 - Contrôles des variables API : adresse invalide ou de mauvaise taille, chevauchements, type qui ne
   correspond pas à l'usage dans le LADDER, instance de tempo déclarée comme variable.
 - Format des snippets v2 (champ `plcTags`) : les anciens snippets sont migrés à la lecture.
-- Génération du LIST (STL / AWL) depuis le LADDER, comme pour le SCL : case « Générer le LIST
-  automatiquement », dans la mnémonique choisie (allemand ou anglais). Contacts, branches, bobines,
-  fronts, comparateurs, MOVE / calculs et appels de temporisations / compteurs. Les types des
-  comparaisons et calculs (I / D / R) viennent de l'interface et des variables API ; un type inconnu
-  est signalé. Une boîte dans une branche parallèle n'est pas encore traduite (message clair).
-- Export « Source externe LIST (.awl) » possible pour un snippet qui n'a que du LADDER : le LIST est
-  généré à l'export, avec un réseau TIA par réseau LADDER.
 
 ## v0.3.4
 
