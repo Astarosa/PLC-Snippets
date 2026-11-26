@@ -37,7 +37,8 @@ export interface ImportPreview {
 }
 
 export type ExportResult =
-  | { kind: "zip"; fileName: string; files: SourceFile[]; warnings: string[] }
+  /** Archive zip ; `extension` pour un format qui en est un (.xlsx), « zip » par défaut. */
+  | { kind: "zip"; fileName: string; files: SourceFile[]; warnings: string[]; extension?: string }
   | { kind: "text"; fileName: string; content: string; extension: string; warnings: string[] };
 
 export interface FormatAdapter {
@@ -60,7 +61,7 @@ export interface FormatAdapter {
 
 /** Réglages de l'utilisateur pris en compte à l'export (mémorisés dans l'app). */
 export interface ExportPreferences {
-  /** Sources LIST (.awl) : mnémonique du projet TIA cible. */
+  /** Mnémonique du projet TIA cible : sources LIST (.awl) et adresses des variables (%I / %E). */
   stlMnemonic?: Mnemonic;
 }
 

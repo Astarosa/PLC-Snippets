@@ -11,7 +11,7 @@
  * et import. Un snippet plus récent que l'app est refusé, jamais deviné.
  */
 
-export const CURRENT_VERSION = 1 as const;
+export const CURRENT_VERSION = 2 as const;
 
 /** Snippet en cours de migration : snippet.json déjà lu, fichiers bruts. */
 export interface MigratableSnippet {
@@ -24,8 +24,8 @@ export interface MigratableSnippet {
 export type Migration = (snippet: MigratableSnippet) => MigratableSnippet;
 
 export const MIGRATIONS: Record<number, Migration> = {
-  // Exemple pour la future v2 :
-  // 1: (s) => ({ ...s, meta: { ...s.meta, schemaVersion: 2, nouveauChamp: [] } }),
+  // v2 : table des variables API (plcTags), vide pour les anciens snippets.
+  1: (s) => ({ ...s, meta: { ...s.meta, schemaVersion: 2, plcTags: [] } }),
 };
 
 export type MigrationResult =

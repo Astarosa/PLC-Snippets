@@ -3,6 +3,25 @@
 Chaque version publiée a sa section `## vX.Y.Z`. Le workflow « Publier une version » en reprend le
 texte pour la release GitHub et pour la notification de mise à jour dans l'application.
 
+## v0.4.0
+
+- Détection des erreurs dans le LADDER avant l'export vers TIA. Les erreurs (opérande « ??? »,
+  instance manquante, variable locale non déclarée, type incompatible, DB d'instance qui porte le
+  nom d'une variable API…) sont entourées en rouge et bloquent l'export SimaticML et SCL. Les
+  avertissements (double affectation, Set sans Reset, bit de front en Temp…) sont en orange et
+  n'empêchent pas l'export.
+- La liste des problèmes s'affiche au-dessus des réseaux : un clic sélectionne l'élément en cause.
+- La palette des symboles reste visible au défilement, comme le bandeau des propriétés.
+- Table des variables API (PLC tags) dans chaque snippet : nom, type, adresse, commentaire. On la
+  remplit à la main, ou depuis le LADDER : en sélectionnant un élément (« Déclarer »), ou d'un clic
+  avec « Tout déclarer » (le type est déduit de l'usage : Bool, Time, Int…).
+- Nouvel export « Table des variables API (.xlsx) » au format Excel de TIA, à importer dans une table
+  des variables API. Adresses écrites dans la mnémonique du projet (%I / %E), adresses manquantes
+  attribuées en %M à partir de %MB1000.
+- Contrôles des variables API : adresse invalide ou de mauvaise taille, chevauchements, type qui ne
+  correspond pas à l'usage dans le LADDER, instance de tempo déclarée comme variable.
+- Format des snippets v2 (champ `plcTags`) : les anciens snippets sont migrés à la lecture.
+
 ## v0.3.4
 
 - Export SimaticML (LADDER) validé dans TIA V20 : il n'est plus marqué expérimental.

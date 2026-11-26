@@ -1,5 +1,7 @@
 import { availableFormats, buildSource, defaultBlockName } from "../export/source";
+import { ladderRefusal, sclComesFromLadder } from "../ladder/check";
 import { emptyInterface } from "../snippet/form";
+import { CURRENT_VERSION } from "../snippet/migrate";
 import { parseRawSnippet, slugify, toRawSnippet } from "../snippet/parse";
 import type { BlockType, Snippet, SnippetInterface, Variable } from "../snippet/schema";
 import { detectMnemonic } from "../stl/mnemonics";
@@ -183,7 +185,7 @@ function blockToItem(block: TiaBlock, lang: "SCL" | "STL", origin: string): Impo
   const raw = toRawSnippet({
     id,
     meta: {
-      schemaVersion: 1,
+      schemaVersion: CURRENT_VERSION,
       title: block.title || block.name,
       summary: block.summary,
       tags: [],
@@ -279,7 +281,12 @@ export const tiaSclAdapter: FormatAdapter = {
   keeps: "SCL seul",
   detect: (s) => s.files.some((f) => f.path.toLowerCase().endsWith(".scl") && hasBlock(f.content)),
   import: (s) => importTia(s, "SCL"),
-  canExport: (snippet) => (availableFormats(snippet).includes("SCL") ? null : "ni SCL ni LADDER"),
+  canExport: (snippet) =>
+    !availableFormats(snippet).includes("SCL")
+      ? "ni SCL ni LADDER"
+      : sclComesFromLadder(snippet)
+        ? ladderRefusal(snippet)
+        : null,
   export: tiaExport("SCL"),
 };
 

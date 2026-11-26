@@ -1,0 +1,7 @@
+U(    
+O     "BP_Marche"
+O     "KM1"
+)     
+U     "BP_Arret"   // câblé NF
+UN    "Defaut"
+=     "KM1"

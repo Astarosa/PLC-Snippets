@@ -1,10 +1,13 @@
 import { formatLadError, parseLadder } from "../ladder/parse";
 import { ladderToScl } from "../ladder/scl";
 import type { Mnemonic } from "../stl/mnemonics";
+import { CURRENT_VERSION } from "./migrate";
 import { type RawSnippet, slugify, toRawSnippet } from "./parse";
+import { canonicalAddress } from "./plc-tags";
 import {
   type BlockType,
   type CpuFamily,
+  type PlcTag,
   type Snippet,
   type SnippetInterface,
   type SnippetMetaInput,
@@ -21,6 +24,8 @@ export interface SnippetForm {
   cpuFamilies: CpuFamily[];
   tiaVersion: string;
   interface: SnippetInterface;
+  /** Table des variables API (PLC tags) du snippet. */
+  plcTags: PlcTag[];
   lad: VariantForm;
   scl: VariantForm & { generated: boolean };
   stl: VariantForm & { mnemonic: Mnemonic };
@@ -62,6 +67,7 @@ export function emptyForm(): SnippetForm {
     cpuFamilies: ["S7-1200", "S7-1500"],
     tiaVersion: "",
     interface: emptyInterface(),
+    plcTags: [],
     lad: { enabled: true, file: "main.lad", content: "" },
     scl: { enabled: true, file: "main.scl", content: "", generated: false },
     stl: { enabled: false, file: "main.awl", content: "", mnemonic: "DE" },
@@ -84,6 +90,7 @@ export function formFromSnippet(snippet: Snippet): SnippetForm {
     cpuFamilies: [...meta.cpuFamilies],
     tiaVersion: meta.tiaVersion ?? "",
     interface: structuredClone(meta.interface),
+    plcTags: structuredClone(meta.plcTags),
     lad: { enabled: !!lad, file: lad?.file ?? "main.lad", content: lad?.content ?? "" },
     scl: {
       enabled: !!scl,
@@ -180,10 +187,27 @@ export function formToRaw(input: SnippetForm, now = new Date().toISOString()): F
   const duplicate = names.find((n, i) => names.indexOf(n) !== i);
   if (duplicate) errors.push(`La variable « ${duplicate} » est déclarée deux fois (le SCL ignore la casse).`);
 
+  // Variables API : lignes sans nom ignorées, champs nettoyés.
+  const plcTags = form.plcTags
+    .filter((t) => t.name.trim())
+    .map((t) => ({
+      name: t.name.trim(),
+      type: t.type.trim(),
+      ...(t.address?.trim() ? { address: canonicalAddress(t.address) } : {}),
+      ...(t.comment?.trim() ? { comment: t.comment.trim() } : {}),
+    }));
+  for (const t of plcTags) {
+    if (!t.type) errors.push(`La variable API « ${t.name} » n'a pas de type.`);
+    if (t.name.includes('"')) errors.push(`La variable API « ${t.name} » contient un guillemet.`);
+  }
+  const tagNames = plcTags.map((t) => t.name.toLowerCase());
+  const dupTag = plcTags.find((_, i) => tagNames.indexOf(tagNames[i]) !== i);
+  if (dupTag) errors.push(`La variable API « ${dupTag.name} » est déclarée deux fois.`);
+
   if (errors.length > 0) return { ok: false, errors };
 
   const meta: SnippetMetaInput = {
-    schemaVersion: 1,
+    schemaVersion: CURRENT_VERSION,
     title: form.title.trim(),
     summary: form.summary.trim(),
     tags: parseTags(form.tagsText),
@@ -191,6 +215,7 @@ export function formToRaw(input: SnippetForm, now = new Date().toISOString()): F
     cpuFamilies: form.cpuFamilies,
     ...(form.tiaVersion.trim() ? { tiaVersion: form.tiaVersion.trim() } : {}),
     interface: iface,
+    plcTags,
     variants: [
       ...(form.lad.enabled ? [{ lang: "LAD" as const, file: form.lad.file }] : []),
       ...(form.scl.enabled

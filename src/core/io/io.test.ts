@@ -58,7 +58,7 @@ describe("format PLC Snippets", () => {
       .filter((f) => f.path.endsWith("snippet.json"))
       .map((f) => ({
         path: "futur/snippet.json",
-        content: f.content.replace('"schemaVersion": 1', '"schemaVersion": 99'),
+        content: f.content.replace(/"schemaVersion": \d+/, '"schemaVersion": 99'),
       }));
     const preview = previewImport(source([...files, ...newer, { path: "casse/snippet.json", content: "{" }]));
     expect(preview.items.map((i) => [i.id, i.snippet !== null])).toEqual([

@@ -31,7 +31,7 @@ export async function runExport(
   if (exportable.length === 0) return { path: null, warnings: refused };
 
   const result = adapter.export(exportable, preferences);
-  const extension = result.kind === "zip" ? "zip" : result.extension;
+  const extension = result.kind === "zip" ? (result.extension ?? "zip") : result.extension;
   const path = await save({
     title: `Exporter — ${adapter.label}`,
     defaultPath: result.fileName,

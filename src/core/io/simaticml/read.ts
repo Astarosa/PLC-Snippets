@@ -5,6 +5,7 @@ import { type FlowGraph, type FlowNode, graphsToProgram } from "../../ladder/gra
 import { printLadder } from "../../ladder/print";
 import { ladderToScl } from "../../ladder/scl";
 import { emptyInterface } from "../../snippet/form";
+import { CURRENT_VERSION } from "../../snippet/migrate";
 import { parseRawSnippet, slugify, toRawSnippet } from "../../snippet/parse";
 import type { BlockType, SnippetInterface, Variable } from "../../snippet/schema";
 import type { ImportItem } from "../types";
@@ -413,7 +414,7 @@ export function readSimaticMl(content: string, origin: string): ImportItem {
   const raw = toRawSnippet({
     id,
     meta: {
-      schemaVersion: 1,
+      schemaVersion: CURRENT_VERSION,
       title: title || name,
       summary,
       tags: [],

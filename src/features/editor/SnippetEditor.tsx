@@ -1,14 +1,19 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CodeBlock } from "../../components/CodeBlock";
+import { checkLadderSource } from "../../core/ladder/check";
+import { parseLadder } from "../../core/ladder/parse";
 import { generateScl, isSclGenerated, type SnippetForm, suggestId } from "../../core/snippet/form";
-import { BLOCK_TYPES, CPU_FAMILIES } from "../../core/snippet/schema";
+import { undeclaredGlobals } from "../../core/snippet/plc-tags";
+import { BLOCK_TYPES, CPU_FAMILIES, type PlcTag } from "../../core/snippet/schema";
 import { convertStl, detectMnemonic } from "../../core/stl/mnemonics";
+import { DiagnosticsPanel } from "../ladder/Diagnostics";
 import { LadderPreview } from "../ladder/LadderPreview";
 import { VisualEditor } from "../ladder/VisualEditor";
 import { MnemonicSwitch } from "../snippet/StlView";
 import { CodeEditor } from "./CodeEditor";
 import { InterfaceEditor } from "./InterfaceEditor";
+import { PlcTagsEditor } from "./PlcTagsEditor";
 
 const field =
   "w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-600 focus:outline-none";
@@ -40,6 +45,21 @@ export function SnippetEditor({
   const [ladMode, setLadMode] = useState<"visual" | "text">("visual");
   const sclGenerated = isSclGenerated(form);
   const generated = sclGenerated ? generateScl(form.lad.content) : null;
+  // Contrôles LADDER avant export TIA (type de bloc + interface déclarée).
+  const checkContext = useMemo(
+    () => ({ blockType: form.blockType, iface: form.interface, plcTags: form.plcTags }),
+    [form.blockType, form.interface, form.plcTags],
+  );
+  // Variables API du LADDER pas encore dans la table (proposées à la déclaration).
+  const undeclared = useMemo(() => {
+    if (!form.lad.enabled || !form.lad.content.trim()) return [];
+    const parsed = parseLadder(form.lad.content);
+    return parsed.ok ? undeclaredGlobals(parsed.program, form.plcTags) : [];
+  }, [form.lad.enabled, form.lad.content, form.plcTags]);
+  const tagsBinding = useMemo(
+    () => ({ value: form.plcTags, onChange: (plcTags: PlcTag[]) => setForm((f) => ({ ...f, plcTags })) }),
+    [form.plcTags],
+  );
   const set = <K extends keyof SnippetForm>(key: K, value: SnippetForm[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
@@ -224,6 +244,8 @@ export function SnippetEditor({
           <VisualEditor
             source={form.lad.content}
             onChange={(content) => set("lad", { ...form.lad, content })}
+            check={checkContext}
+            tags={tagsBinding}
           />
         ) : (
           <div className="space-y-3">
@@ -237,6 +259,17 @@ export function SnippetEditor({
             <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900/60">
               <LadderPreview source={form.lad.content} />
             </div>
+            {form.lad.content.trim() && (
+              <DiagnosticsPanel
+                diagnostics={checkLadderSource(form.lad.content, checkContext)}
+                onFix={() =>
+                  set("plcTags", [
+                    ...form.plcTags,
+                    ...undeclared.map((g) => ({ name: g.name, type: g.type })),
+                  ])
+                }
+              />
+            )}
           </div>
         )}
         <label className="flex items-center gap-2 text-sm text-slate-300">
@@ -322,6 +355,17 @@ export function SnippetEditor({
           value={form.interface}
           onChange={(v) => set("interface", v)}
         />
+      </section>
+
+      <section>
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Variables API (table des variables TIA)
+        </h3>
+        <p className="mb-2 text-xs text-slate-500">
+          Les variables globales du snippet, exportables en .xlsx pour les importer dans TIA (Variables API →
+          Importer). Tu peux aussi les déclarer depuis le LADDER en sélectionnant un élément.
+        </p>
+        <PlcTagsEditor value={form.plcTags} onChange={(v) => set("plcTags", v)} undeclared={undeclared} />
       </section>
 
       <section>

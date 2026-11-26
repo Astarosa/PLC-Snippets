@@ -6,7 +6,8 @@
 //! Protections :
 //! - zip : chemins hors de l'archive (`../`, absolus) refusés, taille et nombre de fichiers
 //!   plafonnés (archives piégées), fichiers système ignorés (__MACOSX, .DS_Store, Thumbs.db) ;
-//! - export : chemins relatifs simples uniquement, extension .zip obligatoire.
+//! - export : chemins relatifs simples uniquement, extension .zip ou .xlsx (un classeur Excel
+//!   est un zip) obligatoire.
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -258,9 +259,9 @@ pub fn write_export_zip(path: &str, files: &[SourceFile]) -> Result<(), String> 
     let is_zip = path
         .extension()
         .and_then(|e| e.to_str())
-        .is_some_and(|e| e.eq_ignore_ascii_case("zip"));
+        .is_some_and(|e| e.eq_ignore_ascii_case("zip") || e.eq_ignore_ascii_case("xlsx"));
     if !is_zip {
-        return Err("L'export de partage doit être un fichier .zip".into());
+        return Err("L'export doit être un fichier .zip ou .xlsx".into());
     }
     if let Some(bad) = files.iter().find(|f| !is_safe_relative(&f.path)) {
         return Err(format!("Chemin interdit dans l'export : {}", bad.path));
@@ -398,6 +399,7 @@ mod tests {
         assert!(write_export_zip(target.to_str().unwrap(), &[file("../x", "")]).is_err());
         assert!(write_export_zip(target.to_str().unwrap(), &[file("a\\b", "")]).is_err());
         assert!(write_export_zip(dir.join("out.txt").to_str().unwrap(), &[file("a", "")]).is_err());
+        assert!(write_export_zip(dir.join("out.xlsx").to_str().unwrap(), &[file("a", "")]).is_ok());
         fs::remove_dir_all(dir).unwrap();
     }
 }
