@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { ask } from "@tauri-apps/plugin-dialog";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "../../components/Badge";
 import { CodeBlock } from "../../components/CodeBlock";
 import { MoreMenu } from "../../components/MoreMenu";
@@ -19,12 +19,16 @@ import { ExportMenu, type ExportStatus, StatusLine } from "../transfer/ExportMen
 import { ExportPanel } from "./ExportPanel";
 import { InterfaceTable } from "./InterfaceTable";
 import { PlcTagsTable } from "./PlcTagsTable";
+import { PrintPortal } from "./PrintSheet";
 import { StlView } from "./StlView";
 
 export function SnippetPage() {
   const { snippetId } = useParams({ from: "/snippets/$snippetId" });
   const { snippet, isLoading } = useSnippet(snippetId);
   const [tab, setTab] = useState<Lang>("LAD");
+  const [printing, setPrinting] = useState(false);
+  const endPrint = useCallback(() => setPrinting(false), []);
+  useShortcut("print", () => setPrinting(true));
   const navigate = useNavigate();
   const deleteSnippet = useDeleteSnippet();
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
@@ -85,6 +89,7 @@ export function SnippetPage() {
 
   return (
     <article className="mx-auto max-w-5xl space-y-6 p-6">
+      {printing && <PrintPortal snippet={snippet} onDone={endPrint} />}
       <header className="space-y-2">
         <div className="flex items-start gap-3">
           <h2 className="text-2xl font-semibold text-slate-100">{meta.title}</h2>
@@ -111,6 +116,7 @@ export function SnippetPage() {
             <MoreMenu
               items={[
                 { label: "Dupliquer", hint: "Ctrl+D", onSelect: duplicate },
+                { label: "Imprimer / PDF", hint: "Ctrl+P", onSelect: () => setPrinting(true) },
                 ...(lad
                   ? [{ label: "Copier le LADDER", onSelect: () => copy(lad.content, "LADDER copié.") }]
                   : []),

@@ -278,6 +278,8 @@ pas de temps de cycle réel, ni de périphérie. À valider sous PLCSIM ou sur l
 
 ## Bibliothèque, thème et raccourcis
 
+- **Imprimer / PDF** (menu ⋯ ou Ctrl+P sur la page d'un snippet) : fiche claire avec schéma, interface,
+  variables API, codes et notes. Pour un PDF : imprimante « Microsoft Print to PDF ».
 - **Nouveau snippet** (Ctrl+N) : partir de zéro ou d'un modèle (marche / arrêt, tempo, alarme, comptage,
   seuils, FB moteur), puis adapter les noms et les adresses.
 - **Filtres** sous la recherche : type de bloc, langage, tags (cliquer un tag sur la page d'un snippet filtre
@@ -293,6 +295,7 @@ pas de temps de cycle réel, ni de périphérie. À valider sous PLCSIM ou sur l
 | Ctrl+S | Enregistrer (éditeur) |
 | Ctrl+D | Dupliquer le snippet ouvert |
 | Ctrl+Z / Ctrl+Y | Annuler / rétablir dans l'éditeur LADDER (100 étapes) |
+| Ctrl+P | Imprimer le snippet ouvert (ou PDF) |
 | Suppr / Échap | Effacer / désélectionner dans le schéma LADDER |
 
 ## Ordre des snippets

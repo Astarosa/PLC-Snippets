@@ -6,11 +6,11 @@ import { useSettings } from "../state/settings";
 /*
  * Raccourcis clavier globaux :
  *   Ctrl+N nouveau snippet · Ctrl+F rechercher · Ctrl+S enregistrer · Ctrl+D dupliquer ·
- *   Ctrl+Z annuler · Ctrl+Y (ou Ctrl+Maj+Z) rétablir.
+ *   Ctrl+Z annuler · Ctrl+Y (ou Ctrl+Maj+Z) rétablir · Ctrl+P imprimer le snippet ouvert.
  * Les actions qui dépendent de l'écran sont enregistrées par la page concernée avec useShortcut.
  */
 
-export type ShortcutAction = "save" | "duplicate" | "undo" | "redo";
+export type ShortcutAction = "save" | "duplicate" | "undo" | "redo" | "print";
 
 /** Champ de saisie ou éditeur de code : Ctrl+Z / Ctrl+Y y gardent leur annulation native. */
 const isTextField = (target: EventTarget | null) =>
@@ -55,6 +55,10 @@ export function useShortcuts() {
       if (key === "s") {
         e.preventDefault();
         handlers.get("save")?.current();
+      } else if (key === "p" && handlers.has("print")) {
+        // Fiche du snippet plutôt que la capture de l'écran.
+        e.preventDefault();
+        handlers.get("print")?.current();
       } else if (key === "d") {
         e.preventDefault();
         handlers.get("duplicate")?.current();

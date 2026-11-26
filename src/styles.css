@@ -74,3 +74,30 @@ body {
   margin: 0;
   background: var(--color-slate-950);
 }
+
+/* Fiche d'impression d'un snippet (Imprimer / PDF) : seule visible à l'impression. */
+#print-root {
+  display: none;
+}
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  body {
+    background: white;
+  }
+  body > *:not(#print-root) {
+    display: none;
+  }
+  #print-root {
+    display: block;
+  }
+  #print-root .print-avoid-break,
+  #print-root .print-diagram svg {
+    break-inside: avoid;
+  }
+  #print-root .print-diagram svg {
+    max-width: 100%;
+    height: auto;
+  }
+}

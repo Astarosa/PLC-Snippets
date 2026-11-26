@@ -33,6 +33,9 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
   le courant s'affiche sur le schéma (vert = passe, pointillés = coupé), les valeurs à côté des opérandes.
   Les entrées se forcent au pupitre ou d'un clic sur un contact ; temporisations (TON, TOF, TP, TONR),
   compteurs, fronts, comparateurs, MOVE et calculs sont simulés. Pause et réinitialisation.
+- Imprimer / PDF (menu ⋯ ou Ctrl+P sur la page d'un snippet) : fiche en thème clair avec le schéma,
+  l'interface, les variables API, chaque variante de code et les notes. Pour un PDF, choisir
+  « Microsoft Print to PDF » dans la fenêtre d'impression.
 - Correction : les constantes en base 16 / 2 (`16#FF`, `2#1010`) sont acceptées dans le LADDER, comme
   l'annonçait la documentation.
 - Génération du LIST (STL / AWL) depuis le LADDER, comme pour le SCL : case « Générer le LIST
