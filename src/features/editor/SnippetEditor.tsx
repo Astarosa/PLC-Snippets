@@ -25,6 +25,7 @@ import { MnemonicSwitch } from "../snippet/StlView";
 import { CodeEditor } from "./CodeEditor";
 import { InterfaceEditor } from "./InterfaceEditor";
 import { PlcTagsEditor } from "./PlcTagsEditor";
+import { useLeaveGuard } from "./useLeaveGuard";
 
 const field =
   "w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-600 focus:outline-none";
@@ -103,8 +104,13 @@ export function SnippetEditor({
     set("plcTags", [...form.plcTags, ...undeclared.map((g) => ({ name: g.name, type: g.type }))]);
   const variableCount = Object.values(form.interface).reduce((n, rows) => n + rows.length, 0);
 
+  // Modifications non enregistrées : confirmation avant de quitter l'éditeur ou de fermer l'app.
+  const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initial), [form, initial]);
+  const { allowLeave } = useLeaveGuard(dirty, errors.length > 0);
   const save = () => {
-    if (!saving) onSave(form);
+    if (saving) return;
+    allowLeave();
+    onSave(form);
   };
   useShortcut("save", save);
 
@@ -143,7 +149,10 @@ export function SnippetEditor({
       {/* Barre fixe : titre, infos, état des contrôles, enregistrement */}
       <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-slate-800 bg-slate-950/95 px-5 backdrop-blur">
         <div className="min-w-0">
-          <p className="text-[11px] text-slate-400">{mode === "create" ? "Nouveau snippet" : "Modifier"}</p>
+          <p className="text-[11px] text-slate-400">
+            {mode === "create" ? "Nouveau snippet" : "Modifier"}
+            {dirty && <span className="ml-2 text-amber-300">● non enregistré</span>}
+          </p>
           <p className="truncate font-semibold text-slate-100">{form.title.trim() || "Sans titre"}</p>
         </div>
         <div className="hidden shrink-0 gap-1 xl:flex">

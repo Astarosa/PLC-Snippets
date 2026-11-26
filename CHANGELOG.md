@@ -18,6 +18,8 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 - Retour à l'accueil : titre « PLC Snippets » et icône maison, aussi dans la bibliothèque repliée.
 - Annuler / rétablir dans l'éditeur LADDER : Ctrl+Z, Ctrl+Y (ou Ctrl+Maj+Z), ou les boutons ↶ ↷.
   Dans un champ de saisie, Ctrl+Z reste celui du champ.
+- Modifications non enregistrées : repère « ● non enregistré » dans l'éditeur, et confirmation avant
+  de le quitter (Annuler, autre page, accueil) ou de fermer la fenêtre de l'app.
 - Génération du LIST (STL / AWL) depuis le LADDER, comme pour le SCL : case « Générer le LIST
   automatiquement », dans la mnémonique choisie (allemand ou anglais). Contacts, branches, bobines,
   fronts, comparateurs, MOVE / calculs et appels de temporisations / compteurs. Les types des
