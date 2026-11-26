@@ -262,6 +262,8 @@ Le texte DSL reste la référence : chaque modification visuelle le réécrit da
 
 ## Bibliothèque, thème et raccourcis
 
+- **Nouveau snippet** (Ctrl+N) : partir de zéro ou d'un modèle (marche / arrêt, tempo, alarme, comptage,
+  seuils, FB moteur), puis adapter les noms et les adresses.
 - **Filtres** sous la recherche : type de bloc, langage, tags (cliquer un tag sur la page d'un snippet filtre
   la bibliothèque). Un ⛔ signale les snippets dont le LADDER bloquerait l'export TIA.
 - **Accueil** : derniers modifiés, snippets à vérifier avant export, raccourcis.

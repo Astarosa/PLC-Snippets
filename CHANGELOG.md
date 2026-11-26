@@ -26,6 +26,9 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 - Importer des variables API depuis un .xlsx exporté de TIA (Variables API → Exporter) ou par
   PLC Snippets : les nouvelles variables sont ajoutées, celles déjà déclarées gardent leur type et
   récupèrent l'adresse et le commentaire qui leur manquaient.
+- Modèles de snippet : « Nouveau snippet » (Ctrl+N) propose un point de départ — vide, marche / arrêt
+  avec auto-maintien, temporisation TON, alarme avec acquittement, comptage sur front, seuils sur une
+  mesure, FB moteur. Chaque modèle vient avec son LADDER, ses variables API et le SCL généré.
 - Génération du LIST (STL / AWL) depuis le LADDER, comme pour le SCL : case « Générer le LIST
   automatiquement », dans la mnémonique choisie (allemand ou anglais). Contacts, branches, bobines,
   fronts, comparateurs, MOVE / calculs et appels de temporisations / compteurs. Les types des

@@ -1,8 +1,10 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
-import { emptyForm, formFromSnippet, formToRaw, type SnippetForm } from "../../core/snippet/form";
+import { formFromSnippet, formToRaw, type SnippetForm } from "../../core/snippet/form";
+import type { SnippetTemplate } from "../../core/snippet/templates";
 import { useCreateSnippet, useSnippet, useUpdateSnippet } from "../../storage/queries";
 import { SnippetEditor } from "./SnippetEditor";
+import { TemplatePicker } from "./TemplatePicker";
 
 function useSave(mode: "create" | "edit") {
   const navigate = useNavigate();
@@ -29,10 +31,20 @@ function useSave(mode: "create" | "edit") {
 export function NewSnippetPage() {
   const navigate = useNavigate();
   const { save, errors, saving } = useSave("create");
+  // Choix du modèle, puis l'éditeur part de ce formulaire.
+  const [start, setStart] = useState<{ template: SnippetTemplate; form: SnippetForm } | null>(null);
+  if (!start)
+    return (
+      <TemplatePicker
+        onPick={(template) => setStart({ template, form: template.build() })}
+        onCancel={() => navigate({ to: "/" })}
+      />
+    );
   return (
     <SnippetEditor
+      key={start.template.id}
       mode="create"
-      initial={emptyForm()}
+      initial={start.form}
       errors={errors}
       saving={saving}
       onSave={save}
