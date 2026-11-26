@@ -11,9 +11,12 @@ const COLOR = { error: "text-red-300", warning: "text-amber-300" } as const;
 export function DiagnosticsPanel({
   diagnostics,
   onPick,
+  onFix,
 }: {
   diagnostics: Diagnostic[];
   onPick?: (d: Diagnostic) => void;
+  /** Applique la correction proposée (ex. déclarer les variables API manquantes). */
+  onFix?: (d: Diagnostic) => void;
 }) {
   const errors = errorsOf(diagnostics);
   const warnings = warningsOf(diagnostics);
@@ -58,17 +61,26 @@ export function DiagnosticsPanel({
             const clickable = !!onPick && d.network !== undefined;
             return (
               // biome-ignore lint/suspicious/noArrayIndexKey: liste recalculée à chaque modification
-              <li key={i}>
+              <li key={i} className="flex items-start gap-1">
                 <button
                   type="button"
                   disabled={!clickable}
                   onClick={() => onPick?.(d)}
-                  className={`flex w-full gap-2 rounded px-2 py-0.5 text-left ${clickable ? "hover:bg-slate-800" : "cursor-default"}`}
+                  className={`flex min-w-0 flex-1 gap-2 rounded px-2 py-0.5 text-left ${clickable ? "hover:bg-slate-800" : "cursor-default"}`}
                 >
                   <span className={COLOR[d.severity]}>{ICON[d.severity]}</span>
                   <span className="w-32 shrink-0 text-slate-500">{locate(d)}</span>
                   <span className="text-slate-200">{d.message}</span>
                 </button>
+                {d.fix === "declare-tags" && onFix && (
+                  <button
+                    type="button"
+                    onClick={() => onFix(d)}
+                    className="shrink-0 rounded border border-amber-700 bg-amber-950/50 px-2 py-0.5 text-amber-200 hover:bg-amber-900/60"
+                  >
+                    Tout déclarer
+                  </button>
+                )}
               </li>
             );
           })}

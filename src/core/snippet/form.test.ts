@@ -15,6 +15,26 @@ function filledForm() {
 }
 
 describe("formToRaw", () => {
+  it("enregistre la table des variables API, nettoyée, et refuse les doublons", () => {
+    const form = filledForm();
+    form.plcTags = [
+      { name: " BP_Marche ", type: "Bool", address: " %e0.0 ", comment: " Bouton " },
+      { name: "", type: "Bool" },
+      { name: "Compteur", type: "Int", address: "" },
+    ];
+    const result = formToRaw(form, NOW);
+    if (!result.ok) throw new Error(result.errors.join());
+    expect(JSON.parse(result.raw.meta).plcTags).toEqual([
+      { name: "BP_Marche", type: "Bool", address: "%I0.0", comment: "Bouton" },
+      { name: "Compteur", type: "Int" },
+    ]);
+    form.plcTags = [
+      { name: "A", type: "Bool" },
+      { name: "a", type: "Bool" },
+    ];
+    expect(formToRaw(form, NOW).ok).toBe(false);
+  });
+
   it("produit un snippet relisible par parseRawSnippet", () => {
     const result = formToRaw(filledForm(), NOW);
     if (!result.ok) throw new Error(result.errors.join("\n"));

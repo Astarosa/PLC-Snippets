@@ -1,0 +1,2 @@
+// BP_Arret câblé NF : TRUE = bouton non appuyé
+"KM1" := ("BP_Marche" OR "KM1") AND "BP_Arret" AND NOT "Defaut";

@@ -10,6 +10,7 @@ import { LadderPreview } from "../ladder/LadderPreview";
 import { ExportMenu, type ExportStatus, StatusLine } from "../transfer/ExportMenu";
 import { ExportPanel } from "./ExportPanel";
 import { InterfaceTable } from "./InterfaceTable";
+import { PlcTagsTable } from "./PlcTagsTable";
 import { StlView } from "./StlView";
 
 export function SnippetPage() {
@@ -146,6 +147,7 @@ export function SnippetPage() {
       </section>
 
       <InterfaceTable iface={meta.interface} />
+      <PlcTagsTable tags={meta.plcTags} />
 
       {snippet.readme && (
         <section>

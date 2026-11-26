@@ -1,4 +1,11 @@
-import type { BlockType, Snippet, SnippetInterface, Variable } from "../snippet/schema";
+import {
+  AUTO_M_START,
+  addressProblem,
+  findTag,
+  overlappingTags,
+  undeclaredGlobals,
+} from "../snippet/plc-tags";
+import type { BlockType, PlcTag, Snippet, SnippetInterface, Variable } from "../snippet/schema";
 import { BOX_SPECS, type BoxKind, type Expr, type LadProgram, type Operand, type Value } from "./ast";
 import type { ElementRef } from "./edit";
 import { normalizeProgram } from "./edit";
@@ -26,11 +33,17 @@ export interface Diagnostic {
   rung?: number;
   /** Élément concerné, adressé comme dans l'éditeur visuel (programme normalisé). */
   ref?: ElementRef;
+  /** Problème hors réseau : interface du bloc ou table des variables API. */
+  scope?: "interface" | "tags";
+  /** Correction proposée par l'interface (bouton). */
+  fix?: "declare-tags";
 }
 
 export interface CheckContext {
   blockType: BlockType;
   iface: SnippetInterface;
+  /** Table des variables API : si fournie, les variables globales sont vérifiées avec. */
+  plcTags?: PlcTag[];
 }
 
 type Section = keyof SnippetInterface;
@@ -143,6 +156,7 @@ export function checkLadder(program: LadProgram, ctx: CheckContext): Diagnostic[
       const other = seen.get(lower);
       if (other)
         diags.push({
+          scope: "interface",
           severity: "error",
           message: `Interface : « ${variable.name} » est déclarée deux fois (${other} et ${section}).`,
         });
@@ -150,11 +164,13 @@ export function checkLadder(program: LadProgram, ctx: CheckContext): Diagnostic[
       declared.set(lower, { section, variable });
       if (section === "constant" && !variable.initial)
         diags.push({
+          scope: "interface",
           severity: "error",
           message: `Interface : la constante « ${variable.name} » n'a pas de valeur.`,
         });
       if (!/^[A-Za-z_]\w*$/.test(variable.name))
         diags.push({
+          scope: "interface",
           severity: "warning",
           message: `Interface : « ${variable.name} » contient des espaces ou caractères spéciaux, on ne peut pas l'utiliser en #locale dans le LADDER.`,
         });
@@ -200,6 +216,10 @@ export function checkLadder(program: LadProgram, ctx: CheckContext): Diagnostic[
         if (v.kind === "global" && !hasMember(v)) {
           const k = rootName(v).toLowerCase();
           if (!plainGlobals.has(k)) plainGlobals.set(k, { label: rootName(v), ref, ...where });
+          // Variable déclarée dans la table : son type est connu, on le vérifie.
+          const tag = ctx.plcTags ? findTag(ctx.plcTags, rootName(v)) : undefined;
+          if (tag)
+            checkCategory(categoryOfType(tag.type), expected, ref, `${what} ("${tag.name}" : ${tag.type})`);
         }
         if (v.kind === "absolute" && mode === "write" && /^%I/i.test(v.text))
           at(
@@ -500,14 +520,59 @@ export function checkLadder(program: LadProgram, ctx: CheckContext): Diagnostic[
       });
   }
 
+  if (ctx.plcTags) diags.push(...checkTags(program, ctx.plcTags, instances));
+
   if (ctx.blockType !== "NETWORK")
     for (const v of ctx.iface.output)
       if (!writtenLocals.has(v.name.toLowerCase()))
         diags.push({
+          scope: "interface",
           severity: "warning",
           message: `La sortie #${v.name} n'est jamais écrite dans le bloc.`,
         });
 
+  return diags;
+}
+
+/** Contrôles de la table des variables API, et de son accord avec le LADDER. */
+function checkTags(program: LadProgram, tags: PlcTag[], instances: Map<string, unknown>): Diagnostic[] {
+  const diags: Diagnostic[] = [];
+  const push = (severity: Severity, message: string, fix?: Diagnostic["fix"]) =>
+    diags.push({ severity, message, scope: "tags", ...(fix ? { fix } : {}) });
+
+  const missing = undeclaredGlobals(program, tags);
+  if (missing.length > 0) {
+    const names = missing.slice(0, 6).map((g) => `"${g.name}"`);
+    const more = missing.length > 6 ? ` et ${missing.length - 6} autres` : "";
+    push(
+      "warning",
+      `${missing.length} variable${missing.length > 1 ? "s" : ""} API absente${missing.length > 1 ? "s" : ""} de la table : ${names.join(", ")}${more}. Sans déclaration, il faudra les créer à la main dans TIA.`,
+      "declare-tags",
+    );
+  }
+
+  const seen = new Set<string>();
+  for (const tag of tags) {
+    const k = tag.name.toLowerCase();
+    if (seen.has(k)) push("error", `"${tag.name}" est déclarée deux fois.`);
+    seen.add(k);
+    const problem = addressProblem(tag);
+    if (problem) push("error", `"${tag.name}" : ${problem}.`);
+    if (instances.has(`global:${k}`))
+      push(
+        "error",
+        `"${tag.name}" sert d'instance de temporisation ou de compteur : c'est un DB, pas une variable API. Retire-la de la table.`,
+      );
+  }
+  for (const [a, b] of overlappingTags(tags))
+    push("warning", `"${a.name}" (${a.address}) et "${b.name}" (${b.address}) se chevauchent en mémoire.`);
+
+  const noAddress = tags.filter((t) => !t.address?.trim());
+  if (noAddress.length > 0)
+    push(
+      "warning",
+      `${noAddress.length} variable${noAddress.length > 1 ? "s" : ""} sans adresse : une adresse %M libre sera attribuée à l'export (à partir de %MB${AUTO_M_START}).`,
+    );
   return diags;
 }
 
@@ -520,7 +585,8 @@ const networksOf = (list: { network: number }[]) => [...new Set(list.map((w) => 
 
 /** Position lisible d'un diagnostic : « Réseau 2, rung 1 ». */
 export function locate(d: Diagnostic): string {
-  if (d.network === undefined) return "Interface";
+  if (d.network === undefined)
+    return d.scope === "tags" ? "Variables API" : d.scope === "interface" ? "Interface" : "LADDER";
   return d.rung === undefined ? `Réseau ${d.network + 1}` : `Réseau ${d.network + 1}, rung ${d.rung + 1}`;
 }
 
@@ -552,7 +618,11 @@ export function summarize(diags: Diagnostic[], max = 3): string {
 export function checkSnippetLadder(snippet: Snippet): Diagnostic[] {
   const lad = snippet.variants.find((v) => v.lang === "LAD");
   if (!lad) return [];
-  return checkLadderSource(lad.content, { blockType: snippet.meta.blockType, iface: snippet.meta.interface });
+  return checkLadderSource(lad.content, {
+    blockType: snippet.meta.blockType,
+    iface: snippet.meta.interface,
+    plcTags: snippet.meta.plcTags,
+  });
 }
 
 /** Le SCL exporté vient-il du LADDER (généré, ou pas de SCL écrit à la main) ? */

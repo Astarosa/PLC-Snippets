@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 2,
+  "title": "Marche / arrêt avec auto-maintien",
+  "summary": "Commande moteur classique : BP marche, BP arrêt câblé NF, coupure sur défaut.",
+  "tags": [
+    "moteur",
+    "base",
+    "auto-maintien"
+  ],
+  "blockType": "NETWORK",
+  "cpuFamilies": [
+    "S7-1200",
+    "S7-1500"
+  ],
+  "tiaVersion": "V19",
+  "plcTags": [
+    {
+      "name": "BP_Marche",
+      "type": "Bool",
+      "address": "%I0.0",
+      "comment": "Bouton marche (NO)"
+    },
+    {
+      "name": "BP_Arret",
+      "type": "Bool",
+      "address": "%I0.1",
+      "comment": "Bouton arrêt câblé NF"
+    },
+    {
+      "name": "Defaut",
+      "type": "Bool",
+      "address": "%I0.2",
+      "comment": "Défaut moteur (relais thermique)"
+    },
+    {
+      "name": "KM1",
+      "type": "Bool",
+      "address": "%Q0.0",
+      "comment": "Contacteur moteur"
+    }
+  ],
+  "variants": [
+    {
+      "lang": "LAD",
+      "file": "main.lad"
+    },
+    {
+      "lang": "SCL",
+      "file": "main.scl",
+      "generated": false
+    },
+    {
+      "lang": "STL",
+      "file": "main.awl",
+      "mnemonic": "DE"
+    }
+  ],
+  "createdAt": "2026-11-18T12:00:00.000Z",
+  "updatedAt": "2026-11-18T12:00:00.000Z"
+}

@@ -1,5 +1,6 @@
 import { parseLadder } from "../core/ladder/parse";
 import { ladderToScl } from "../core/ladder/scl";
+import { CURRENT_VERSION } from "../core/snippet/migrate";
 import { type RawSnippet, toRawSnippet } from "../core/snippet/parse";
 
 const SURVEILLANCE_LAD = `network "Défaut de bourrage"
@@ -23,13 +24,19 @@ export function sampleSnippets(now = new Date().toISOString()): RawSnippet[] {
     toRawSnippet({
       id: "marche-arret-auto-maintien",
       meta: {
-        schemaVersion: 1,
+        schemaVersion: CURRENT_VERSION,
         title: "Marche / arrêt avec auto-maintien",
         summary: "Commande moteur classique : BP marche, BP arrêt câblé NF, coupure sur défaut.",
         tags: ["moteur", "base", "auto-maintien"],
         blockType: "NETWORK",
         cpuFamilies: ["S7-1200", "S7-1500"],
         tiaVersion: "V19",
+        plcTags: [
+          { name: "BP_Marche", type: "Bool", address: "%I0.0", comment: "Bouton marche (NO)" },
+          { name: "BP_Arret", type: "Bool", address: "%I0.1", comment: "Bouton arrêt câblé NF" },
+          { name: "Defaut", type: "Bool", address: "%I0.2", comment: "Défaut moteur (relais thermique)" },
+          { name: "KM1", type: "Bool", address: "%Q0.0", comment: "Contacteur moteur" },
+        ],
         variants: [
           { lang: "LAD", file: "main.lad" },
           { lang: "SCL", file: "main.scl", generated: false },
@@ -71,7 +78,7 @@ export function sampleSnippets(now = new Date().toISOString()): RawSnippet[] {
     toRawSnippet({
       id: "surveillance-bourrage-comptage",
       meta: {
-        schemaVersion: 1,
+        schemaVersion: CURRENT_VERSION,
         title: "Surveillance de bourrage et comptage par lot",
         summary:
           "Défaut si la sortie reste libre 8 s convoyeur en marche ; comptage des pièces sur front montant.",
@@ -98,7 +105,7 @@ export function sampleSnippets(now = new Date().toISOString()): RawSnippet[] {
     toRawSnippet({
       id: "machine-etat-convoyeur",
       meta: {
-        schemaVersion: 1,
+        schemaVersion: CURRENT_VERSION,
         title: "Machine d'état convoyeur avec surveillance de transfert",
         summary:
           "FB : attente → transfert → défaut si la pièce n'arrive pas en sortie dans le temps imparti.",

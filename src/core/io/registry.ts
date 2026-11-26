@@ -1,3 +1,4 @@
+import { plcTagsXlsxAdapter } from "./plc-tags-xlsx";
 import { plcSnippetsAdapter } from "./plcsnippets";
 import { simaticMlAdapter } from "./simaticml/adapter";
 import { tiaAwlAdapter, tiaSclAdapter } from "./tia-source";
@@ -12,6 +13,7 @@ export const ADAPTERS: FormatAdapter[] = [
   tiaSclAdapter,
   tiaAwlAdapter,
   simaticMlAdapter,
+  plcTagsXlsxAdapter,
   {
     id: "plcopen",
     label: "PLCopen XML (.xml)",

@@ -26,6 +26,17 @@ export const variableSchema = z.object({
   comment: z.string().optional(),
 });
 
+/**
+ * Variable API globale (table des variables TIA « PLC tags ») utilisée par le snippet.
+ * L'adresse est optionnelle : sans adresse, une adresse %M est attribuée à l'export.
+ */
+export const plcTagSchema = z.object({
+  name: z.string().min(1),
+  type: z.string().min(1),
+  address: z.string().optional(),
+  comment: z.string().optional(),
+});
+
 export const interfaceSchema = z.object({
   input: z.array(variableSchema).default([]),
   output: z.array(variableSchema).default([]),
@@ -60,6 +71,8 @@ export const snippetMetaSchema = z.object({
     temp: [],
     constant: [],
   }),
+  /** Variables API à créer dans le projet TIA (format v2). */
+  plcTags: z.array(plcTagSchema).default([]),
   variants: z.array(variantSchema).min(1, "Au moins une variante (LAD, SCL ou LIST)"),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -71,6 +84,7 @@ export const LANG_SHORT: Record<Lang, string> = { LAD: "LAD", SCL: "SCL", STL: "
 export type BlockType = (typeof BLOCK_TYPES)[number];
 export type CpuFamily = (typeof CPU_FAMILIES)[number];
 export type Variable = z.infer<typeof variableSchema>;
+export type PlcTag = z.infer<typeof plcTagSchema>;
 export type SnippetInterface = z.infer<typeof interfaceSchema>;
 export type SnippetMeta = z.infer<typeof snippetMetaSchema>;
 /** Ce qu'on écrit sur le disque : les champs avec valeur par défaut deviennent optionnels. */

@@ -39,10 +39,13 @@ import {
 } from "../../core/ladder/layout";
 import { formatLadError, parseLadder } from "../../core/ladder/parse";
 import { printLadder } from "../../core/ladder/print";
+import { elementGlobals, undeclaredGlobals } from "../../core/snippet/plc-tags";
+import type { PlcTag } from "../../core/snippet/schema";
 import { DiagnosticsPanel, ElementDiagnostics } from "./Diagnostics";
 import { Inspector, RangeInspector } from "./Inspector";
 import { ShapeView } from "./LadderDiagram";
 import { PALETTE } from "./palette";
+import { TagQuickEdit } from "./TagQuickEdit";
 
 /* ---------- Ce qu'on fait glisser, et où on peut le poser ---------- */
 
@@ -162,11 +165,14 @@ export function VisualEditor({
   source,
   onChange,
   check,
+  tags,
 }: {
   source: string;
   onChange: (source: string) => void;
   /** Type de bloc et interface : active la détection d'erreurs avant export TIA. */
   check?: CheckContext;
+  /** Table des variables API : déclaration à la volée depuis l'élément sélectionné. */
+  tags?: { value: PlcTag[]; onChange: (tags: PlcTag[]) => void };
 }) {
   const parsed = useMemo(() => (source.trim() ? parseLadder(source) : null), [source]);
   const program = useMemo<LadProgram | null>(() => {
@@ -314,6 +320,13 @@ export function VisualEditor({
   const draggedRef = drag?.active && drag.payload.src === "move" ? drag.payload.ref : null;
   const coilTool = tool ? isCoilPayload(tool) : false;
 
+  /** Élément sélectionné (contact, boîte ou bobine), pour ses variables API. */
+  const selectedElement = !selected
+    ? null
+    : selected.kind === "expr"
+      ? getExpr(program, selected)
+      : (program.networks[selected.network]?.rungs[selected.rung]?.outputs[selected.output] ?? null);
+
   const deleteNetwork = async (n: number) => {
     const ok = await ask(`Supprimer le réseau ${n + 1} et tout son contenu ?`, {
       title: "Supprimer le réseau",
@@ -413,6 +426,13 @@ export function VisualEditor({
                 onDeleted={() => select(null)}
               />
               <ElementDiagnostics diagnostics={byElement.get(JSON.stringify(selected)) ?? []} />
+              {tags && selectedElement && (
+                <TagQuickEdit
+                  globals={elementGlobals(selectedElement)}
+                  tags={tags.value}
+                  onChange={tags.onChange}
+                />
+              )}
             </>
           ) : (
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500">
@@ -428,6 +448,11 @@ export function VisualEditor({
         {check && program.networks.length > 0 && (
           <DiagnosticsPanel
             diagnostics={diagnostics}
+            onFix={() => {
+              if (!tags) return;
+              const missing = undeclaredGlobals(program, tags.value);
+              tags.onChange([...tags.value, ...missing.map((g) => ({ name: g.name, type: g.type }))]);
+            }}
             onPick={(d) => {
               if (d.network === undefined) return;
               if (d.ref) select(d.ref);

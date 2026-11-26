@@ -12,6 +12,15 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
   n'empêchent pas l'export.
 - La liste des problèmes s'affiche au-dessus des réseaux : un clic sélectionne l'élément en cause.
 - La palette des symboles reste visible au défilement, comme le bandeau des propriétés.
+- Table des variables API (PLC tags) dans chaque snippet : nom, type, adresse, commentaire. On la
+  remplit à la main, ou depuis le LADDER : en sélectionnant un élément (« Déclarer »), ou d'un clic
+  avec « Tout déclarer » (le type est déduit de l'usage : Bool, Time, Int…).
+- Nouvel export « Table des variables API (.xlsx) » au format Excel de TIA, à importer dans une table
+  des variables API. Adresses écrites dans la mnémonique du projet (%I / %E), adresses manquantes
+  attribuées en %M à partir de %MB1000.
+- Contrôles des variables API : adresse invalide ou de mauvaise taille, chevauchements, type qui ne
+  correspond pas à l'usage dans le LADDER, instance de tempo déclarée comme variable.
+- Format des snippets v2 (champ `plcTags`) : les anciens snippets sont migrés à la lecture.
 
 ## v0.3.4
 

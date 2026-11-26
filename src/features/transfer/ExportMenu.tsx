@@ -85,8 +85,8 @@ export function ExportMenu({
                 </p>
                 {family === "TIA Portal" && (
                   <div className="flex items-center justify-between px-3 py-1.5 text-xs text-slate-400">
-                    <span title="Doit correspondre à Options → Settings → General → Mnemonic dans TIA">
-                      Mnémonique LIST (.awl)
+                    <span title="Doit correspondre à Options → Settings → General → Mnemonic dans TIA. Sert aux sources LIST et aux adresses des variables API (%I / %E).">
+                      Mnémonique (LIST, adresses)
                     </span>
                     <MnemonicSwitch value={stlMnemonic} onChange={setStlMnemonic} />
                   </div>
