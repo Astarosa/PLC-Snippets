@@ -53,7 +53,7 @@ const PATTERNS: [TokenKind | "skip" | "comment", RegExp][] = [
   ["string", new RegExp(`^"[^"\\n]*"${MEMBER}`)],
   ["local", new RegExp(`^#[A-Za-z_]\\w*${MEMBER}`)],
   ["absolute", /^%[IQM][XBWD]?\d+(?:\.\d+)?/i],
-  ["literal", /^[A-Za-z_]+#[\w.:+-]+/], // T#5S, 16#FF, INT#10
+  ["literal", /^(?:[A-Za-z_]+|\d+)#[\w.:+-]+/], // T#5S, 16#FF, 2#1010, INT#10
   ["symbol", /^(?:->|==|<>|>=|<=|[&|(),=<>])/],
   ["literal", /^[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/],
   ["word", /^[A-Za-z_]\w*/],

@@ -29,6 +29,8 @@ texte pour la release GitHub et pour la notification de mise à jour dans l'appl
 - Modèles de snippet : « Nouveau snippet » (Ctrl+N) propose un point de départ — vide, marche / arrêt
   avec auto-maintien, temporisation TON, alarme avec acquittement, comptage sur front, seuils sur une
   mesure, FB moteur. Chaque modèle vient avec son LADDER, ses variables API et le SCL généré.
+- Correction : les constantes en base 16 / 2 (`16#FF`, `2#1010`) sont acceptées dans le LADDER, comme
+  l'annonçait la documentation.
 - Génération du LIST (STL / AWL) depuis le LADDER, comme pour le SCL : case « Générer le LIST
   automatiquement », dans la mnémonique choisie (allemand ou anglais). Contacts, branches, bobines,
   fronts, comparateurs, MOVE / calculs et appels de temporisations / compteurs. Les types des

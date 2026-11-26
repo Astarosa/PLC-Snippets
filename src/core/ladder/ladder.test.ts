@@ -22,6 +22,16 @@ describe("parseLadder", () => {
     expect(rung.outputs).toEqual([{ kind: "COIL", operand: { kind: "global", text: '"KM1"' } }]);
   });
 
+  it("accepte les constantes en base 16, 2 et typées", () => {
+    const program = parse('NO "Go" & ADD IN1=16#FF IN2=2#1010 OUT="A"\nNO "Go" & MOVE IN=INT#10 OUT="B"');
+    const params = program.networks[0].rungs.map((r) =>
+      r.condition.type === "series" && r.condition.items[1].type === "box" ? r.condition.items[1].params : {},
+    );
+    expect(params[0].IN1).toEqual({ kind: "literal", text: "16#FF" });
+    expect(params[0].IN2).toEqual({ kind: "literal", text: "2#1010" });
+    expect(params[1].IN).toEqual({ kind: "literal", text: "INT#10" });
+  });
+
   it("accepte locales, membres de DB, adresses absolues et minuscules", () => {
     const program = parse('no #Tempo.Q & nc "DB_Ligne".Defaut & NO %i0.0 & NO "DB"."Mot clé" -> coil %Q0.1');
     const [rung] = program.networks[0].rungs;
