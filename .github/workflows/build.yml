@@ -32,9 +32,11 @@ jobs:
 
       # Cache lu partout, enregistré seulement depuis main : les PR profitent du cache de main
       # sans créer leurs propres caches de plus d'1 Go qui chasseraient le bon.
+      # shared-key « build » : même nom de cache qu'avant le découpage en deux jobs.
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+          shared-key: build
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Dépendances
