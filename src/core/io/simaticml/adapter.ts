@@ -1,4 +1,12 @@
 import { defaultBlockName } from "../../export/source";
+import {
+  checkSnippetLadder,
+  errorsOf,
+  ladderRefusal,
+  locate,
+  summarize,
+  warningsOf,
+} from "../../ladder/check";
 import type { Snippet } from "../../snippet/schema";
 import type { ExportResult, FormatAdapter, ImportSource } from "../types";
 import { isSimaticMl, readSimaticMl } from "./read";
@@ -15,12 +23,24 @@ export const simaticMlAdapter: FormatAdapter = {
   keeps: "LADDER (TIA V20)",
   detect: (s) => xmlFiles(s).length > 0,
   import: (s) => xmlFiles(s).map((f) => readSimaticMl(f.content, f.path)),
-  canExport: (snippet: Snippet) => (snippet.variants.some((v) => v.lang === "LAD") ? null : "pas de LADDER"),
+  canExport: (snippet: Snippet) =>
+    snippet.variants.some((v) => v.lang === "LAD") ? ladderRefusal(snippet) : "pas de LADDER",
   export(snippets: Snippet[]): ExportResult {
     const warnings: string[] = [];
     const files: { path: string; content: string }[] = [];
     for (const snippet of snippets) {
       try {
+        // Vérification avant écriture : TIA refuserait un bloc avec des erreurs.
+        const diags = checkSnippetLadder(snippet);
+        const errors = errorsOf(diags);
+        if (errors.length > 0)
+          throw new SimaticMlExportError(`à corriger avant export — ${summarize(errors)}`);
+        warnings.push(
+          ...warningsOf(diags).map((d) => {
+            const w = `${locate(d)} : ${d.message}`;
+            return snippets.length > 1 ? `${snippet.meta.title} : ${w}` : w;
+          }),
+        );
         const r = writeSimaticMl(snippet, defaultBlockName(snippet));
         files.push({ path: r.fileName, content: r.xml });
         warnings.push(...r.warnings.map((w) => (snippets.length > 1 ? `${snippet.meta.title} : ${w}` : w)));

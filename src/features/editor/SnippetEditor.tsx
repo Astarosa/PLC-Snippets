@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CodeBlock } from "../../components/CodeBlock";
+import { checkLadderSource } from "../../core/ladder/check";
 import { generateScl, isSclGenerated, type SnippetForm, suggestId } from "../../core/snippet/form";
 import { BLOCK_TYPES, CPU_FAMILIES } from "../../core/snippet/schema";
 import { convertStl, detectMnemonic } from "../../core/stl/mnemonics";
+import { DiagnosticsPanel } from "../ladder/Diagnostics";
 import { LadderPreview } from "../ladder/LadderPreview";
 import { VisualEditor } from "../ladder/VisualEditor";
 import { MnemonicSwitch } from "../snippet/StlView";
@@ -40,6 +42,11 @@ export function SnippetEditor({
   const [ladMode, setLadMode] = useState<"visual" | "text">("visual");
   const sclGenerated = isSclGenerated(form);
   const generated = sclGenerated ? generateScl(form.lad.content) : null;
+  // Contrôles LADDER avant export TIA (type de bloc + interface déclarée).
+  const checkContext = useMemo(
+    () => ({ blockType: form.blockType, iface: form.interface }),
+    [form.blockType, form.interface],
+  );
   const set = <K extends keyof SnippetForm>(key: K, value: SnippetForm[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
@@ -224,6 +231,7 @@ export function SnippetEditor({
           <VisualEditor
             source={form.lad.content}
             onChange={(content) => set("lad", { ...form.lad, content })}
+            check={checkContext}
           />
         ) : (
           <div className="space-y-3">
@@ -237,6 +245,9 @@ export function SnippetEditor({
             <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900/60">
               <LadderPreview source={form.lad.content} />
             </div>
+            {form.lad.content.trim() && (
+              <DiagnosticsPanel diagnostics={checkLadderSource(form.lad.content, checkContext)} />
+            )}
           </div>
         )}
         <label className="flex items-center gap-2 text-sm text-slate-300">

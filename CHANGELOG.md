@@ -3,6 +3,16 @@
 Chaque version publiée a sa section `## vX.Y.Z`. Le workflow « Publier une version » en reprend le
 texte pour la release GitHub et pour la notification de mise à jour dans l'application.
 
+## v0.3.5
+
+- Détection des erreurs dans le LADDER avant l'export vers TIA. Les erreurs (opérande « ??? »,
+  instance manquante, variable locale non déclarée, type incompatible, DB d'instance qui porte le
+  nom d'une variable API…) sont entourées en rouge et bloquent l'export SimaticML et SCL. Les
+  avertissements (double affectation, Set sans Reset, bit de front en Temp…) sont en orange et
+  n'empêchent pas l'export.
+- La liste des problèmes s'affiche au-dessus des réseaux : un clic sélectionne l'élément en cause.
+- La palette des symboles reste visible au défilement, comme le bandeau des propriétés.
+
 ## v0.3.4
 
 - Export SimaticML (LADDER) validé dans TIA V20 : il n'est plus marqué expérimental.

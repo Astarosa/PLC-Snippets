@@ -1,3 +1,4 @@
+import { checkSnippetLadder, errorsOf, sclComesFromLadder, summarize } from "../ladder/check";
 import { generateScl } from "../snippet/form";
 import type { Snippet, SnippetInterface, Variable } from "../snippet/schema";
 import { convertStl, type Mnemonic } from "../stl/mnemonics";
@@ -125,6 +126,12 @@ export function buildSource(snippet: Snippet, options: ExportOptions): ExportRes
 
   let body: string;
   if (options.format === "SCL") {
+    // SCL issu du LADDER : mêmes contrôles que l'export SimaticML.
+    if (sclComesFromLadder(snippet)) {
+      const errors = errorsOf(checkSnippetLadder(snippet));
+      if (errors.length > 0)
+        return { ok: false, error: `LADDER à corriger avant export — ${summarize(errors)}` };
+    }
     const scl = snippet.variants.find((v) => v.lang === "SCL");
     const lad = snippet.variants.find((v) => v.lang === "LAD");
     if (scl) body = scl.content;

@@ -1,6 +1,7 @@
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Expr, LadProgram, Output } from "../../core/ladder/ast";
+import { type CheckContext, checkLadder, type Diagnostic } from "../../core/ladder/check";
 import {
   addOutput,
   addRung,
@@ -38,6 +39,7 @@ import {
 } from "../../core/ladder/layout";
 import { formatLadError, parseLadder } from "../../core/ladder/parse";
 import { printLadder } from "../../core/ladder/print";
+import { DiagnosticsPanel, ElementDiagnostics } from "./Diagnostics";
 import { Inspector, RangeInspector } from "./Inspector";
 import { ShapeView } from "./LadderDiagram";
 import { PALETTE } from "./palette";
@@ -156,12 +158,37 @@ function applyDrop(program: LadProgram, zone: Zone, payload: Payload): DropResul
  * - cliquer un symbole puis une zone (sans glisser) ;
  * - clic = sélection, Maj + clic = plage d'éléments, Suppr = effacer, corbeille = effacer en glissant.
  */
-export function VisualEditor({ source, onChange }: { source: string; onChange: (source: string) => void }) {
+export function VisualEditor({
+  source,
+  onChange,
+  check,
+}: {
+  source: string;
+  onChange: (source: string) => void;
+  /** Type de bloc et interface : active la détection d'erreurs avant export TIA. */
+  check?: CheckContext;
+}) {
   const parsed = useMemo(() => (source.trim() ? parseLadder(source) : null), [source]);
   const program = useMemo<LadProgram | null>(() => {
     if (parsed === null) return { networks: [] };
     return parsed.ok ? normalizeProgram(parsed.program) : null;
   }, [parsed]);
+
+  const diagnostics = useMemo<Diagnostic[]>(
+    () => (program && check ? checkLadder(program, check) : []),
+    [program, check],
+  );
+  /** Problèmes par élément (clé = adresse sérialisée) et par réseau. */
+  const byElement = useMemo(() => {
+    const map = new Map<string, Diagnostic[]>();
+    for (const d of diagnostics) {
+      if (!d.ref) continue;
+      const k = JSON.stringify(d.ref);
+      map.set(k, [...(map.get(k) ?? []), d]);
+    }
+    return map;
+  }, [diagnostics]);
+  const sectionRefs = useRef<(HTMLElement | null)[]>([]);
 
   const [selected, setSelected] = useState<ElementRef | null>(null);
   const [range, setRange] = useState<RangeRef | null>(null);
@@ -300,7 +327,8 @@ export function VisualEditor({ source, onChange }: { source: string; onChange: (
   return (
     <div className="grid grid-cols-[150px_1fr] gap-3">
       {/* Palette */}
-      <aside className="select-none space-y-3 rounded-lg border border-slate-700 bg-slate-900/60 p-2">
+      {/* Palette : reste visible au défilement, comme le bandeau des propriétés */}
+      <aside className="sticky top-0 z-10 max-h-[calc(100vh-1rem)] select-none space-y-3 self-start overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-lg shadow-slate-950">
         {PALETTE.map((group) => (
           <div key={group.title}>
             <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
@@ -374,15 +402,18 @@ export function VisualEditor({ source, onChange }: { source: string; onChange: (
               onClear={() => select(null)}
             />
           ) : selected ? (
-            <Inspector
-              key={JSON.stringify(selected)}
-              program={program}
-              selected={selected}
-              // Modifier un élément ne change pas son adresse : il reste sélectionné.
-              onChange={(next) => onChange(printLadder(next))}
-              onReplaceSelection={(next, focus) => commit(next, focus)}
-              onDeleted={() => select(null)}
-            />
+            <>
+              <Inspector
+                key={JSON.stringify(selected)}
+                program={program}
+                selected={selected}
+                // Modifier un élément ne change pas son adresse : il reste sélectionné.
+                onChange={(next) => onChange(printLadder(next))}
+                onReplaceSelection={(next, focus) => commit(next, focus)}
+                onDeleted={() => select(null)}
+              />
+              <ElementDiagnostics diagnostics={byElement.get(JSON.stringify(selected)) ?? []} />
+            </>
           ) : (
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500">
               <p>Glisse un symbole de la palette, ou un élément déjà posé, vers une zone bleue.</p>
@@ -394,9 +425,23 @@ export function VisualEditor({ source, onChange }: { source: string; onChange: (
           )}
         </aside>
 
+        {check && program.networks.length > 0 && (
+          <DiagnosticsPanel
+            diagnostics={diagnostics}
+            onPick={(d) => {
+              if (d.network === undefined) return;
+              if (d.ref) select(d.ref);
+              sectionRefs.current[d.network]?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+          />
+        )}
+
         {program.networks.map((network, n) => {
           const d = layoutNetwork(network);
           const elements = d.shapes.filter((s): s is ElementShape => "ref" in s && s.ref !== undefined);
+          const networkDiags = diagnostics.filter((x) => x.network === n);
+          const networkErrors = networkDiags.filter((x) => x.severity === "error").length;
+          const networkWarnings = networkDiags.length - networkErrors;
           const rangeShapes = range
             ? elements.filter((s) => s.ref.path && inRange(range, n, s.ref.rung, s.ref.path))
             : [];
@@ -410,8 +455,14 @@ export function VisualEditor({ source, onChange }: { source: string; onChange: (
                 }))
               : null;
           return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: les réseaux n'ont pas d'identifiant propre
-            <section key={n} className="rounded-lg border border-slate-700 bg-slate-900/60 p-2">
+            <section
+              // biome-ignore lint/suspicious/noArrayIndexKey: les réseaux n'ont pas d'identifiant propre
+              key={n}
+              ref={(el) => {
+                sectionRefs.current[n] = el;
+              }}
+              className={`rounded-lg border bg-slate-900/60 p-2 ${networkErrors > 0 ? "border-red-900" : "border-slate-700"}`}
+            >
               <div className="mb-1 flex items-center gap-2">
                 <span className="text-[11px] font-semibold text-slate-500">Réseau {n + 1}</span>
                 <input
@@ -431,6 +482,12 @@ export function VisualEditor({ source, onChange }: { source: string; onChange: (
                   }}
                   className="flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-sm text-sky-300 hover:border-slate-700 focus:border-sky-600 focus:outline-none"
                 />
+                {(networkErrors > 0 || networkWarnings > 0) && (
+                  <span className="text-[11px]">
+                    {networkErrors > 0 && <span className="text-red-300">⛔ {networkErrors}</span>}{" "}
+                    {networkWarnings > 0 && <span className="text-amber-300">⚠ {networkWarnings}</span>}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => deleteNetwork(n)}
@@ -465,6 +522,28 @@ export function VisualEditor({ source, onChange }: { source: string; onChange: (
                       // biome-ignore lint/suspicious/noArrayIndexKey: formes recalculées à chaque rendu
                       <ShapeView key={i} shape={shape} />
                     ))}
+
+                  {/* Éléments en défaut : rouge = erreur, orange = avertissement */}
+                  {elements.map((shape) => {
+                    const found = byElement.get(JSON.stringify(refOf(n, shape.ref)));
+                    if (!found) return null;
+                    const error = found.some((x) => x.severity === "error");
+                    const b = shapeBox(shape);
+                    return (
+                      <rect
+                        key={`diag-${JSON.stringify(shape.ref)}`}
+                        x={b.x - 1}
+                        y={b.y - 1}
+                        width={b.w + 2}
+                        height={b.h + 2}
+                        rx={5}
+                        className={`pointer-events-none ${error ? "fill-red-500/10 stroke-red-500" : "fill-amber-400/10 stroke-amber-400"}`}
+                        strokeWidth={1.5}
+                      >
+                        <title>{found.map((x) => x.message).join("\n")}</title>
+                      </rect>
+                    );
+                  })}
 
                   {rangeBox && (
                     <rect
